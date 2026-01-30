@@ -1,19 +1,33 @@
 import { Routes, Route } from 'react-router-dom';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
 import Home from './pages/Home';
-import Register from './pages/Register';
-import Login from './pages/Login';
+
+// layouts
+import AdminLayout from './layouts/AdminLayout';
 import WorkerLayout from './layouts/WorkerLayout';
+import EmployerLayout from './layouts/EmployerLayout';
+
+// dashboards
+import WorkerDashboard from './pages/worker/WorkerDashboard';
+
+// admin pages
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminUsers from './pages/admin/AdminUsers';
+
+// worker pages
 import WorkerProfile from './pages/worker/WorkerProfile';
 import WorkerMessages from './pages/worker/WorkerMessages';
-import EmployerLayout from './layouts/EmployerLayout';
+import JobDiscovery from './pages/worker/JobDiscovery';
+import JobDetails from './pages/worker/JobDetails';
+
+// employer pages
 import PostJob from './pages/employer/PostJob';
 import MyJobs from './pages/employer/MyJobs';
 import ViewApplicants from './pages/employer/ViewApplicants';
-import AdminLayout from './layouts/AdminLayout';
-import AdminDashboard from './pages/admin/AdminDashboard';
-import AdminUsers from './pages/admin/AdminUsers';
-import ProtectedRoute from './components/ProtectedRoute';
+
 
 
 function App() {
@@ -21,8 +35,8 @@ function App() {
     <AuthProvider>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
 
         {/* Protected Admin Route */}
         <Route path="/admin" element={
@@ -45,7 +59,7 @@ function App() {
         <Route path="/worker" element={
             <ProtectedRoute allowedRoles={['worker']}>
               <WorkerLayout>
-                <div className="text-2xl font-bold text-slate-800">Worker Dashboard Home</div>
+                <WorkerDashboard />
               </WorkerLayout>
             </ProtectedRoute>
         } />
@@ -54,14 +68,6 @@ function App() {
           <ProtectedRoute allowedRoles={['worker']}>
             <WorkerLayout>
               <WorkerProfile/>
-            </WorkerLayout>
-          </ProtectedRoute>
-        } />
-
-        <Route path="/worker/messages" element={
-          <ProtectedRoute allowedRoles={['worker']}>
-            <WorkerLayout>
-              <WorkerMessages />
             </WorkerLayout>
           </ProtectedRoute>
         } />
@@ -80,7 +86,15 @@ function App() {
           </ProtectedRoute>
         } />
 
-        {/*Protected employer route*/}
+        <Route path="/worker/messages" element={
+          <ProtectedRoute allowedRoles={['worker']}>
+            <WorkerLayout>
+              <WorkerMessages />
+            </WorkerLayout>
+          </ProtectedRoute>
+        } />
+
+        {/*Protected employer routes*/}
         <Route path="/employer" element={
             <ProtectedRoute allowedRoles={['employer']}>
               <EmployerLayout>
@@ -88,6 +102,13 @@ function App() {
               </EmployerLayout>
             </ProtectedRoute>
         } />
+
+        <Route path="/employer/profile" element={
+          <ProtectedRoute allowedRoles={['employer']}>
+            <EmployerLayout><div className="text-2xl font-bold">Employer Profile Page</div></EmployerLayout>
+          </ProtectedRoute>
+        } />
+
         <Route path="/employer/post-job" element={
           <ProtectedRoute allowedRoles={['employer']}>
             <EmployerLayout>
@@ -109,6 +130,13 @@ function App() {
             <EmployerLayout><ViewApplicants /></EmployerLayout>
           </ProtectedRoute>
         } />
+
+        <Route path="/employer/messages" element={
+          <ProtectedRoute allowedRoles={['employer']}>
+            <EmployerLayout><div className = "text-2xl font-bold">Employer Messages Page</div></EmployerLayout>
+          </ProtectedRoute>
+        } />
+
       </Routes>
     </AuthProvider>
   );

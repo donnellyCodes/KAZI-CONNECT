@@ -30,7 +30,7 @@ export default function PostJob() {
                 <div>
                     <label className="block text-sm font-medium text-slate-600">Detailed Description</label>
                     <textarea
-                        require className="w-full mt-1 p-2 border rounded-md h-32"
+                        required className="w-full mt-1 p-2 border rounded-md h-32"
                         placeholder="Describe the tasks, tools required, etc."
                         onChange={(e) => setJobData({...jobData, description: e.target.value})}
                     />

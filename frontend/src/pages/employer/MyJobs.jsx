@@ -1,42 +1,75 @@
 import { useEffect, useState } from 'react';
 import API from '../../api/axios';
-import { Users, MapPin, Clock, Link } from 'lucide-react';
+import { Users, MapPin, Clock, Briefcase } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export default function MyJobs() {
     const [jobs, setJobs] = useState([]);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchMyJobs = async () => {
             try {
-                const { data } = await API.get('/jobs');
+                const { data } = await API.get('/jobs/my-jobs');
                 setJobs(data);
-            } catch (err) { console.error(err); }
+            } catch (err) {
+                console.error("Error fetching jobs:", err);
+            } finally {
+                setLoading(false);
+            }
         };
         fetchMyJobs();
     }, []);
 
+    if (loading) return <div className="p-10 text-emerald-600 animate-pulse font-bold">Loading your jobs...</div>
+
     return (
         <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-slate-800">Your Active Postings</h2>
-            <div className="grid gap-4">
-                {jobs.map((job) => (
-                    <div key={job.id} className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center">
-                        <div>
-                            <h3 className="text-lg font-bold text-emerald-700">{job.title}</h3>
-                            <div className="flex gap-4 text-sm text-slate-500 mt-1">
-                                <span className="flex items-center gap-1"><MapPin size={14}/> {job.location}</span>
-                                <span className="flex items-center gap-1"><Clock size={14}/> Budget: KES {job.budget}</span>
+            <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-slate-800">Your Job Postings</h2>
+                <Link to="/employer/post-job" className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-emerald-700 transition-all">
+                    + Post New Job
+                </Link>
+            </div>
+
+            {jobs.Length === 0 ? (
+                <div className="bg-white p-20 rounded-2xl border-2 border-dashed border-slate-200 text-center">
+                    <Briefcase className="mx-auto text-slate-300 mb-4" size={48} />
+                    <p className="text-slate-500 font-medium text-lg">You haven't posted any jobs yet.</p>
+                    <Link to="/employer/post-job" className="text-emerald-600 font-bold hover:underline mt-2 inline-block">
+                        Create your first listing now
+                    </Link>
+                </div>
+            ) : (
+                <div className="grid gap-4">
+                    {jobs.map((job) => (
+                        <div key={job.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-center hover:border-emerald-300 transition-all">
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <h3 className="text-lg font-bold text-slate-800">{job.title}</h3>
+                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                                        job.status === 'open' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'
+                                    }`}>
+                                        {job.status}
+                                    </span>
+                                </div>
+                                <div className="flex gap-4 text-sm text-slate-500 mt-2">
+                                    <span className="flex items-center gap-1"><MapPin size={14}/>{job.location}</span>
+                                    <span className="flex items-center gap-1"><Clock size={14}/></span>
+                                </div>
+                            </div>
+                            <div className="mt-4 md:mt-0">
+                                <Link
+                                    to={`/employer/jobs/${job.id}/applicants`}
+                                    className="flex items-center gap-2 bg-emerald-50 text-emerald-700 px-6 py-2.5 rounded-xl hover:bg-emerald-600 hover:text-white transition-all font-bold text-sm shadow-sm"
+                                >
+                                    <Users size={18} /> View Applicants
+                                </Link>
                             </div>
                         </div>
-                        <Link
-                            to={`/employer/jobs/${job.id}/applicants`}
-                            className="flex items-center gap-2 bg-slate-100 text-slate-700 px-4 py-2 rounded-lg hover:bg-emerald-100 hover:text-emerald-700 transition-all font-medium"
-                        >
-                            <Users size={18} /> View Applicants
-                        </Link>
-                    </div>
-                ))}
-            </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }

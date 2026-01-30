@@ -1,10 +1,10 @@
-const { Application, Job, Employer, Skill, User } = require('../models');
+const { Application, Job, Employer, Worker, Skill, User } = require('../models');
 const { Op } = require('sequelize');
 
 // @desc for creating a new job
 // @route POST /api/jobs
 // @access Private for employer only
-exports .getJobApplication = async (req, res) => {
+exports .getJobApplications = async (req, res) => {
     try {
         const { jobId } = req.params;
 
@@ -45,31 +45,94 @@ exports.updateApplicationStatus = async (req, res) => {
     }
 };
 
+exports.getMyJobs = async (req, res) => {
+    try {
+        // check if user id is reaching the controller
+        if (!req.user || !req.user.id) {
+            return res.status(401).json({ message: "User not authenticated" });
+        }
+        // find employer profile linked to the user id
+        const employer = await Employer.findOne({ where: { userId: req.user.id } });
+
+        if (!employer) {
+            return res.status(404).json({ message: "Employer profile not found" });
+        }
+
+        // find all jobs belonging to this employer
+        const jobs = await Job.findAll({
+            where: { employerId: employer.id },
+            order: [['createdAt', 'DESC']]
+        });
+
+        res.json(jobs);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 exports.getAllJobs = async (req, res) => {
     try {
         const { location, minBudget, search } = req.query;
-        let whereClause = { status: 'Open' };
+        let userId = null;
+        let workerId = null;
+
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith("Bearer ")) {
+            try {
+                const token = authHeader.split(" ")[1];
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                userId = decoded.id;
+
+                const worker = await Worker.findOne({ where: { userId } });
+                workerId = worker ? worker.id : null;
+            } catch (err) {
+
+            }
+        }
+
+        let whereClause = { status: 'open' };
 
         // filter by location
-        if (location) whereClause.location = { [Op.iLike]: `%${location}%` };
+        if (location && location.trim() !== "") {
+            whereClause.location = { [Op.iLike]: `%${location}%` };
+        }
 
         // filter by Min Budget
-        if (minBudget) whereClause.budget = { [Op.gte]: minBudget };
+        if (minBudget && minBudget !== "") {
+            whereClause.budget = { [Op.gte]: parseFloat(minBudget) };
+        }
 
         // search in title or description
-        if (search) {
+        if (search && search.trim() !== "") {
             whereClause[Op.or] = [
                 { title: { [Op.iLike]: `%${search}% `} },
                 { description: { [Op.iLike]: `%${search}%` } }
             ];
         }
+
         const jobs = await Job.findAll({
             where: whereClause,
-            include: [{ model: Employer, attributes: ['companyName', 'location'] }],
+            include: [
+                {
+                    model: Employer,
+                    attributes: ['companyName', 'location']
+                },
+                {
+                    model: Application,
+                    required: false,
+                    attributes: ['id', 'workerId']
+                }
+            ],
             order: [['createdAt', 'DESC']]
         });
-        res.json(jobs);
+        const formattedJobs = jobs.map(job => {
+            const jobJson = job.toJSON();
+            jobJson.hasApplied = workerId ? job.Applications.some(app => app.workerId === workerId) : false;
+            return jobJson;
+        })
+        res.json(formattedJobs);
     } catch (error) {
+        console.error("Getting jobs failed", error);
         res.status(500).json({ error: error.message });
     }
 };
@@ -90,7 +153,8 @@ exports.createJob = async (req, res) => {
             description,
             location,
             budget,
-            employerId: employer.id
+            employerId: employer.id,
+            status: 'open'
         });
 
         // link skills to the job
@@ -117,6 +181,25 @@ exports.getJobById = async (req, res) => {
         });
         if (!job) return res.status(404).json({ message: "Job not found" });
         res.json(job);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// @desc Get worker stats (Application count, etc.)
+// @route GET /api/jobs/worker-stats
+exports.getWorkerStats = async (req, res) => {
+    try {
+        const worker = await Worker.findOne({ where: { userId: req.user.id } });
+        if (!worker) return res.json({ totalApplications: 0, acceptedApplications: 0 });
+
+        const total = await Application.count({ where: { workerId: worker.id } });
+        const accepted = await Application.count({ where: { workerId: worker.id, status: 'accepted' } });
+
+        res.json({
+            totalApplications: total,
+            acceptedApplications: accepted
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
