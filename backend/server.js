@@ -5,6 +5,7 @@ const { sequelize } = require('./models');
 const authRoutes = require('./routes/authRoutes');
 const jobRoutes = require('./routes/jobRoutes');
 const messageRoutes = require('./routes/messageRoutes');
+
 require('dotenv').config();
 
 const app = express();
