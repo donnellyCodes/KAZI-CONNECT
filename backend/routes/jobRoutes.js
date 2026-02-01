@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createJob, getAllJobs, getJobById, getMyJobs, getJobApplications, getWorkerStats, updateApplicationStatus } = require('../controllers/jobController');
+const { createJob, getAllJobs, getJobById, getMyJobs, getJobApplications, getWorkerStats, updateApplicationStatus, completeJob } = require('../controllers/jobController');
 const { applyForJob } = require('../controllers/applicationController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -15,6 +15,7 @@ router.get('/:id', getJobById);
 // application routes
 router.post('/:jobId/apply', protect, authorize('worker'), applyForJob); // only workers can apply
 
+router.put('/:id/complete', protect, authorize('employer'), completeJob);
 router.put('/applications/:id', protect, authorize('employer'), updateApplicationStatus);
 
 module.exports = router;

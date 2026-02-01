@@ -46,25 +46,41 @@ export default function MyJobs() {
                         <div key={job.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-center hover:border-emerald-300 transition-all">
                             <div>
                                 <div className="flex items-center gap-2 mb-1">
-                                    <h3 className="text-lg font-bold text-slate-800">{job.title}</h3>
-                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
-                                        job.status === 'open' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'
+                                    <h3 className="text-xl font-bold text-slate-800">{job.title}</h3>
+                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-widest ${
+                                        job.status === 'open' ? 'bg-blue-100 text-blue-600' :
+                                        job.status === 'in-progress' ? 'bg-amber-100 text-amber-600' :
+                                        'bg-emerald-100 text-emerald-600'
                                     }`}>
                                         {job.status}
                                     </span>
                                 </div>
                                 <div className="flex gap-4 text-sm text-slate-500 mt-2">
-                                    <span className="flex items-center gap-1"><MapPin size={14}/>{job.location}</span>
-                                    <span className="flex items-center gap-1"><Clock size={14}/></span>
+                                    <span className="flex items-center gap-1">
+                                        <MapPin size={14} className="text-emerald-500" /> {job.location}
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                        <Clock size={14} className="text-emerald-500" /> Budget: KES {job.budget}
+                                    </span>
                                 </div>
                             </div>
+
                             <div className="mt-4 md:mt-0">
                                 <Link
                                     to={`/employer/jobs/${job.id}/applicants`}
                                     className="flex items-center gap-2 bg-emerald-50 text-emerald-700 px-6 py-2.5 rounded-xl hover:bg-emerald-600 hover:text-white transition-all font-bold text-sm shadow-sm"
                                 >
-                                    <Users size={18} /> View Applicants
+                                    <Users size={18} />Applicants
                                 </Link>
+
+                                {job.status === 'in-progress' && (
+                                    <button
+                                        onClick={() => handleComplete(job.id)}
+                                        className="text-sm font-bold text-blue-600 hover:underline"
+                                    >
+                                        Mark as Completed
+                                    </button>
+                                )}
                             </div>
                         </div>
                     ))}

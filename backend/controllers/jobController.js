@@ -1,4 +1,4 @@
-const { Application, Job, Employer, Worker, Skill, User } = require('../models');
+const { Application, Job, Employer, Worker, Skill, User, Message } = require('../models');
 const { Op } = require('sequelize');
 
 // @desc for creating a new job
@@ -32,14 +32,43 @@ exports .getJobApplications = async (req, res) => {
 exports.updateApplicationStatus = async (req, res) => {
     try {
         const { status } = req.body;
-        const application = await Application.findByPk(req.params.id);
+        const application = await Application.findByPk(req.params.id, {
+            include: [Job]
+        });
 
         if (!application) return res.status(404).json({ message: "Application not found" });
 
         application.status = status;
         await application.save();
 
-        res.json({ message: `Application ${status}`, application });
+        if (status === 'accepted') {
+            const job = await Job.findByPk(application.jobId);
+            job.status = 'in-progress'; // shows job is active
+            job.hiredWorkerId = application.workerId;
+            await job.save();
+
+            // auto-generates "system message" to start chat
+            await Message.create({
+                senderId: req.user.id, // employer
+                receiverId: (await Worker.findByPk(application.workerId)).userId,
+                content: `Congratulations! I have hired you for the job: ${job.title}. Let's discuss the details here.`
+            });
+        }
+
+        res.json({ message: `Worker ${status} successfully.`, application });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+exports.completeJob = async (req, res) => {
+    try {
+        const job = await Job.findOne({ where: { id: req.params.id, employerId: req.user.id } });
+        if (!job) return res.status(404).json({ message: "Job not found" });
+        job.status = 'completed';
+        await job.save();
+
+        res.json({ message: "Job marked as completed. Please leave a review.", job });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

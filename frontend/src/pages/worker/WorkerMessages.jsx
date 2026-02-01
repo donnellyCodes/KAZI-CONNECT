@@ -1,13 +1,26 @@
 import { useState, useEffect } from 'react';
 import API from '../../api/axios';
+import { useLocation } from 'react-router-dom';
 import { Send, User, Search, MoreVertical, MessageSquare } from 'lucide-react';
 
 export default function WorkerMessages() {
-    const [chats, setChats] = useState([]);
+    const location = useLocation();
+    const incomingContactId = location.state?.contactId;
 
+    const [chats, setChats] = useState([]);
     const [activeChat, setActiveChat] = useState(null);
     const [input, setInput] = useState('');
     const [messages, setMessages] = useState([]);
+
+    // auto select logic
+    useEffect(() => {
+        if (incomingContactId && chats.length > 0) {
+            const existingChat = chats.find(c => c.id === incomingContactId);
+            if (existingChat) {
+                setActiveChat(existingChat);
+            }
+        }
+    }, [incomingContactId, chats]);
 
     // fetch messages whenever there is new chat
     useEffect(() => {

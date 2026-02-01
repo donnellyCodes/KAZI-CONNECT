@@ -24,10 +24,10 @@ import JobDiscovery from './pages/worker/JobDiscovery';
 import JobDetails from './pages/worker/JobDetails';
 
 // employer pages
+import EmployerProfile from './pages/employer/EmployerProfile';
 import PostJob from './pages/employer/PostJob';
 import MyJobs from './pages/employer/MyJobs';
 import ViewApplicants from './pages/employer/ViewApplicants';
-
 
 
 function App() {
@@ -105,7 +105,9 @@ function App() {
 
         <Route path="/employer/profile" element={
           <ProtectedRoute allowedRoles={['employer']}>
-            <EmployerLayout><div className="text-2xl font-bold">Employer Profile Page</div></EmployerLayout>
+            <EmployerLayout>
+              <EmployerProfile />
+            </EmployerLayout>
           </ProtectedRoute>
         } />
 
