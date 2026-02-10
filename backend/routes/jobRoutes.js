@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createJob, getAllJobs, getJobById, getMyJobs, getJobApplications, getWorkerStats, updateApplicationStatus, completeJob } = require('../controllers/jobController');
+const { createJob, getAllJobs, getJobById, getMyJobs, getEmployerStats, getJobApplications, getWorkerStats, updateApplicationStatus, completeJob } = require('../controllers/jobController');
 const { applyForJob } = require('../controllers/applicationController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -8,6 +8,7 @@ const { protect, authorize } = require('../middleware/auth');
 router.post('/', protect, authorize('employer'), createJob); // only employers can post
 router.get('/', getAllJobs); // everyone can see jobs
 router.get('/my-jobs', protect, authorize('employer'), getMyJobs);
+router.get('/employer-stats', protect, authorize('employer'), getEmployerStats);
 router.get('/:jobId/applications', protect, authorize('employer'), getJobApplications);
 router.get('/worker-stats', protect, authorize('worker'), getWorkerStats);
 router.get('/:id', getJobById);

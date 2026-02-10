@@ -1,10 +1,7 @@
 import { useState, useEffect } from 'react';
-import { io } from 'socket.io-client';
 import API from '../../api/axios';
 import { useLocation } from 'react-router-dom';
 import { Send, User, Search, MoreVertical, MessageSquare } from 'lucide-react';
-
-const socket = io("http://localhost:5000");
 
 export default function WorkerMessages() {
     const location = useLocation();
@@ -14,19 +11,6 @@ export default function WorkerMessages() {
     const [activeChat, setActiveChat] = useState(null);
     const [input, setInput] = useState('');
     const [messages, setMessages] = useState([]);
-
-    useEffect(() => {
-        if (User) {
-            socket.emit('join', User.id);
-        }
-
-        socket.on('receive_message', (newMessage) => {
-            if (activeChat && newMessage.senderId === activeChat.id) {
-                setMessages((prev) => [...prev, newMessage]);
-            }
-        });
-        return () => socket.off('receive_message');
-    }, [User, activeChat])
 
     // auto select logic
     useEffect(() => {

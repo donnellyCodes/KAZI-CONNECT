@@ -12,9 +12,10 @@ import EmployerLayout from './layouts/EmployerLayout';
 
 // dashboards
 import WorkerDashboard from './pages/worker/WorkerDashboard';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import EmployerDashboard from './pages/employer/EmployerDashboard';
 
 // admin pages
-import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminUsers from './pages/admin/AdminUsers';
 
 // worker pages
@@ -28,6 +29,7 @@ import EmployerProfile from './pages/employer/EmployerProfile';
 import PostJob from './pages/employer/PostJob';
 import MyJobs from './pages/employer/MyJobs';
 import ViewApplicants from './pages/employer/ViewApplicants';
+import EmployerMessages from './pages/employer/EmployerMessages';
 
 
 function App() {
@@ -98,7 +100,7 @@ function App() {
         <Route path="/employer" element={
             <ProtectedRoute allowedRoles={['employer']}>
               <EmployerLayout>
-                <div className="text-2xl font-bold text-slate-800">Employer Overview Dashboard</div>
+                <EmployerDashboard />
               </EmployerLayout>
             </ProtectedRoute>
         } />
@@ -127,7 +129,7 @@ function App() {
           </ProtectedRoute>
         } />
 
-        <Route path="/employer/jobs/:jobId/aplicants" element={
+        <Route path="/employer/jobs/:jobId/applicants" element={
           <ProtectedRoute allowedRoutes={['employer']}>
             <EmployerLayout><ViewApplicants /></EmployerLayout>
           </ProtectedRoute>
@@ -135,7 +137,9 @@ function App() {
 
         <Route path="/employer/messages" element={
           <ProtectedRoute allowedRoles={['employer']}>
-            <EmployerLayout><div className = "text-2xl font-bold">Employer Messages Page</div></EmployerLayout>
+            <EmployerLayout>
+              <EmployerMessages />
+            </EmployerLayout>
           </ProtectedRoute>
         } />
 

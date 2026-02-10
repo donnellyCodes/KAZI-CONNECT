@@ -55,13 +55,18 @@ export default function ViewApplicants() {
                             <div className="flex-1">
                                 <div className="flex items-center gap-3 mb-2">
                                     <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center font-bold text-xl">
-                                        {app.Worker?.firstName?.charAt(0)}
+                                        <h3>{app.Worker?.firstName} {app.Worker?.lastName}</h3>
+                                        <p>{app.proposal}</p>
+                                        <p>Email: {app.Worker?.User?.email}</p>
                                     </div>
                                 </div>
                                 <div>
-                                    <h3 className="font-bold text-slate-800 text-lg">
+                                    <Link
+                                        to={`/employer/worker/${app.Worker?.id}`}
+                                        className="hover:underline text-emerald-600 font-bold text-lg block"
+                                    >
                                         {app.Worker?.firstName} {app.Worker?.lastName}
-                                    </h3>
+                                    </Link>
                                     <span className="text-xs text-slate-500 flex items-center gap-1">
                                         <MapPin size={12}/> {app.Worker?.location || 'No location set'}
                                     </span>

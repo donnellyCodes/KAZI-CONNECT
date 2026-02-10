@@ -8,19 +8,18 @@ exports .getJobApplications = async (req, res) => {
     try {
         const { jobId } = req.params;
 
-        // ensure the job belongs to the requesting employer
-        const job = await Job.findOne({ where: { if: jobId, employerId: req.user.id } });
-
         const applications = await Application.findAll({
-            where: { jobId },
+            where: { jobId: jobId },
             include: [
                 {
                     model: Worker,
-                    include: [{ model: User, attributes: ['email'] }]
+                    require: true,
+                    include: [{ model: User, attributes: ['email', 'id'] }]
                 }
             ]
         });
 
+        console.log(`Found ${applications.length} applicants for job ${jobId}`);
         res.json(applications);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -231,5 +230,21 @@ exports.getWorkerStats = async (req, res) => {
         });
     } catch (error) {
         res.status(500).json({ error: error.message });
+    }
+};
+
+exports.getEmployerStats = async (req, res) => {
+    try {
+        const employer = await Employer.findOne({ where: { userId:req.user.id } });
+        if (!employer) {
+            console.log("No employer profile found for user:", req.user.id);
+            return res.status(404).json({ totalJobs: 0, activeJobs: 0 });
+        }
+        const totalJobs = await Job.count({ where: { employerId: employer.id } });
+        const activeJobs = await Job.count({ where: { employerId: employer.id, status: 'in-progress' } });
+        res.json({ totalJobs, activeJobs });
+    } catch (error) {
+        console.error("STATS ERROR:", error);
+        res.status(500).json({ error: "Internal Server Error" });
     }
 };

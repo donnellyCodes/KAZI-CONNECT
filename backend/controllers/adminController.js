@@ -23,3 +23,10 @@ exports.verifyWorker = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+exports.getSystemStats = async (req, res) => {
+    const userCount = await User.count();
+    const jobCount = await Job.count();
+    const pendingVerifications = await Worker.count({ where: { isVerified: false } });
+    res.json({ userCount, jobCount, pendingVerifications });
+}
