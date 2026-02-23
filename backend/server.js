@@ -36,7 +36,7 @@ io.on('connection', (socket) => {
 
     // handle sending messages
     socket.on('send_message', (data) => {
-        io.to(data.receiverId).emit('receiver_message', data);
+        io.to(data.receiverId).emit('receive_message', data);
     });
 
     socket.on('disconnect', () => {

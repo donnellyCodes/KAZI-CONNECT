@@ -51,7 +51,7 @@ export default function JobDiscovery() {
                                     <div className="flex items-center gap-2 mb-2">
                                         <h3 className="text-xl font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">{job.title}</h3>
                                         {/* indicate if applied */}
-                                        {job.Applications && job.Applications.length > 0 && (
+                                        {job.hasApplied && (
                                             <span className="bg-green-100 text-green-700 text-[10px] px-2 py-1 rounded-full font-black uppercase">
                                                 Already Applied
                                             </span>

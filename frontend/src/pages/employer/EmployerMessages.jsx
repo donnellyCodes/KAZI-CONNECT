@@ -1,50 +1,78 @@
 import { useState, useEffect } from 'react';
-import API from '../../api/axios';
 import { useLocation } from 'react-router-dom';
+import API from '../../api/axios';
+import { useAuth } from '../../context/AuthContext';
+import { io } from 'socket.io-client';
+
 import { Send, User, Search, MoreVertical, MessageSquare } from 'lucide-react';
 
-export default function WorkerMessages() {
+const socket = io('http://localhost:5000');
+
+export default function EmployerMessages() {
     const location = useLocation();
+    const { user } = useAuth();
+
     const incomingContactId = location.state?.contactId;
 
     const [chats, setChats] = useState([]);
     const [activeChat, setActiveChat] = useState(null);
-    const [input, setInput] = useState('');
     const [messages, setMessages] = useState([]);
+    const [input, setInput] = useState('');
+    const [loadingChats, setLoadingChats] = useState(true);
 
-    // auto select logic
-    useEffect(() => {
-        if (incomingContactId && chats.length > 0) {
-            const existingChat = chats.find(c => c.id === incomingContactId);
-            if (existingChat) {
-                setActiveChat(existingChat);
-            }
-        }
-    }, [incomingContactId, chats]);
-
-    // fetch messages whenever there is new chat
+    // 2. Load conversations
     useEffect(() => {
         const fetchConversations = async () => {
             try {
                 const { data } = await API.get('/messages/conversations/list');
-
-                // map the data
-                const formattedChats = data.map(user => ({
-                    id: user.id,
-                    name: user.role === 'employer' ? user.Employer?.companyName : `${user.Worker?.firstName}${user.Worker?.lastName}`,
-                    lastMsg: "Click to view messages"
+                const formatted = data.map(c => ({
+                    id: c.id,
+                    name: c.role === 'worker' ? `${c.Worker?.firstName} ${c.Worker?.lastName}` : c.Employer?.companyName
                 }));
-                setChats(formattedChats);
-            } catch (err) {
-                console.error("Could not fetch conversation list");
-            }
+                setChats(formatted);
+                setLoadingChats(false);
+            } catch (err) { console.error("Error loading charts", err); }
         };
         fetchConversations();
     }, []);
 
+    // auto select logic
+    useEffect(() => {
+        if (incomingContactId &&!loadingChats) {
+            console.log("Checking for incoming contact in sidebar:", incomingContactId);
+
+            const existingChat = chats.find(c => c.id === incomingContactId);
+            if (existingChat) {
+                console.log("Contact found in existing chats, opening window...");
+                setActiveChat(existingChat);
+            } else {
+                console.log("Contact NOT in sidebar. Fetching new contact info...");
+                API.get(`/jobs/contact-info/${incomingContactId}`).then(({ data }) => { // /api/jobs/contact-info
+                    const newPerson = { id: data.id, name: data.name };
+                    setChats(prev => [newPerson, ...prev]);
+                    setActiveChat(newPerson);
+                }).catch(err => console.error("Contact fetch error", err));
+            }
+        }
+    }, [incomingContactId, loadingChats]);
+
+    // socket.io setup
+    useEffect(() => {
+        if (user?.id) {
+            socket.emit('join', user.id);
+        }
+        socket.on('receive_message', (data) => {
+            if (activeChat && data.senderId === activeChat.id) {
+                setMessages((prev) => [...prev, data]);
+            }
+        });
+        return () => socket.off('receive_message');
+    }, [user, activeChat]);
+
     // fetch message for specific chat
     useEffect(() => {
-        if (activeChat) {
+        if (activeChat && activeChat.id) {
+            console.log("Fetching messages for:", activeChat.id);
             const fetchMessages = async () => {
                 try {
                     const { data } = await API.get(`/messages/${activeChat.id}`);
@@ -55,9 +83,9 @@ export default function WorkerMessages() {
             };
             fetchMessages();
 
-            // poll for new messages every 4 seconds
-            const interval = setInterval(fetchMessages, 4000);
-            return () => clearInterval(interval);
+            // Auto-refresh every 5 seconds
+            const timer = setInterval(fetchMessages, 5000);
+            return () => clearInterval(timer);
         }
     }, [activeChat]);
 
@@ -70,7 +98,8 @@ export default function WorkerMessages() {
                 receiverId: activeChat.id,
                 content: input
             });
-
+            // emit via socket
+            socket.emit('send_message', data);
             setMessages([...messages, data]); // adds message to UI
             setInput(''); // CLEARS the text box
         } catch (err) {
@@ -93,7 +122,7 @@ export default function WorkerMessages() {
                             className={`p-4 flex gap-3 cursor-pointer transition-all ${activeChat?.id === chat.id ? 'bg-indigo-50 border-r-4 border-indigo-600' : 'hover:bg-slate-50'}`}
                         >
                             <div className="w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center text-slate-500 font-bold">
-                                {chat.name.charAt(0)}
+                                {chat.name}
                             </div>
                             <div className="flex-1 min-w-0">
                                 <h4 className="font-bold text-slate-800 truncate">{chat.name}</h4>
@@ -112,7 +141,7 @@ export default function WorkerMessages() {
                         <div className="p-4 border-b bg-white flex justify-between items-center shadow-sm">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center font-bold">
-                                    {activeChat.name.charAt(0)}
+                                    {activeChat.name}
                                 </div>
                                 <h3 className="font-bold text-slate-800">{activeChat.name}</h3>
                             </div>

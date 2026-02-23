@@ -1,19 +1,42 @@
 import { useState, useEffect } from 'react';
 import API from '../../api/axios';
-import { Briefcase, CheckCircle, Clock, ArrowRight, MessageSquare } from 'lucide-react';
+import { Briefcase, CheckCircle, Clock, ArrowRight, MessageSquare, Zap, MapPin, DollarSign } from 'lucide-react';
 import { Link } from 'react-router-dom';
+
+// A simple reusable component for job listings
+const JobCard = ({ job }) => (
+    <div className="bg-white p-5 rounded-2xl border border-slate-200 hover:border-indigo-400 transition-all shadow-sm flex justify-between items-center group">
+        <div>
+        <h4 className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{job.title}</h4>
+        <div className="flex gap-3 mt-1">
+            <span className="text-xs text-slate-400 flex items-center gap-1"><MapPin size={12}/> {job.location}</span>
+            <span className="text-xs text-slate-400 flex items-center gap-1"><DollarSign size={12}/> KES {job.budget}</span>
+        </div>
+        {/* Show match score if AI calculated it */}
+        {job.matchScore && (
+            <span className="mt-2 inline-block text-[10px] font-black bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full uppercase">
+            AI MATCH: {job.matchScore}%
+            </span>
+        )}
+        </div>
+        <Link to={`/worker/jobs/${job.id}`} className="p-2 bg-indigo-50 text-indigo-600 rounded-xl group-hover:bg-indigo-600 group-hover:text-white transition-all">
+        <ArrowRight size={20} />
+        </Link>
+    </div>
+);
 
 export default function WorkerDashboard() {
     const [stats, setStats] = useState({ totalApplications: 0, acceptedApplications: 0});
     const [recentJobs, setRecentJobs] = useState([]);
     const [activeJobs, setActiveJobs] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [recommendations, setRecommendations] = useState([]);
 
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
                 const statsRes = await API.get('/jobs/worker-stats');
-                const jobRes = await API.get('/jobs?limits=3');
+                const jobRes = await API.get('/jobs?limit=3');
                 setStats(statsRes.data);
                 setRecentJobs(jobRes.data.slice(0, 3)); // only show the top 3
                 const myJobsRes = await API.get('/jobs');
@@ -27,6 +50,16 @@ export default function WorkerDashboard() {
             }
         };
         fetchDashboardData();
+    }, []);
+
+    useEffect(() => {
+        const fetchAI = async () => {
+            try {
+                const { data } = await API.get('/jobs/recommendations');
+                setRecommendations(data);
+            } catch (err) { console.error(err); }
+        };
+        fetchAI();
     }, []);
 
     if (loading) return <div className="p-10 text-indigo-600 font-bold">Loading your dashboard...</div>
@@ -48,6 +81,16 @@ export default function WorkerDashboard() {
                     <Clock className="mb-4 text-amber-500" size={32} />
                     <p className="text-slate-500 text-sm font-medium">Active Tasks</p>
                     <h3 className="text-4xl font-black text-slate-800">{activeJobs.length}</h3>
+                </div>
+                <div className="bg-indigo-50 p-6 rounded-3xl mb-8">
+                    <h3 className="font-bold text-indigo-900 mb-4 flex items-center gap-2">
+                        <Zap className="text-amber-500" /> AI recommended for you
+                    </h3>
+                    <div className="grid gap-4">
+                        {recommendations.map(job => (
+                            <JobCard key={job.id} job={job} />
+                        ))}
+                    </div>
                 </div>
             </div>
             

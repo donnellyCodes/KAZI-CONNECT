@@ -1,5 +1,6 @@
 const { Application, Job, Employer, Worker, Skill, User, Message } = require('../models');
 const { Op } = require('sequelize');
+const aiService = require('../services/aiServices');
 
 // @desc for creating a new job
 // @route POST /api/jobs
@@ -8,19 +9,40 @@ exports .getJobApplications = async (req, res) => {
     try {
         const { jobId } = req.params;
 
+        const job = await Job.findByPk(jobId);
+        if (!job) {
+            return res.status(404).json({ message: "Job not found" });
+        }
         const applications = await Application.findAll({
-            where: { jobId: jobId },
+            where: { jobId },
             include: [
                 {
                     model: Worker,
-                    require: true,
-                    include: [{ model: User, attributes: ['email', 'id'] }]
+                    attributes: ['id', 'firstName', 'lastName', 'userId'],
+                    include: [{ model: User, attributes: ['id', 'email'] }]
                 }
             ]
         });
 
-        console.log(`Found ${applications.length} applicants for job ${jobId}`);
-        res.json(applications);
+        if (applications.length === 0) return res.json([]);
+
+        const workers = applications.map(app => app.Worker);
+
+        // get scores from the AI
+        const aiScores = await aiService.getMatchScores(job, workers);
+
+        // merge the scores
+        const rankedApplications = applications.map(app => {
+            const appJson = app.toJSON();
+            // find scores for a specific worker
+            const scoreData = aiScores?.find(s => s.workerId === app.workerId);
+            appJson.matchScore = scoreData ? scoreData.matchScore : 0;
+            return appJson;
+        });
+
+        rankedApplications.sort((a, b) => b.matchScore - a.matchScore);
+
+        res.json(rankedApplications);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -100,22 +122,12 @@ exports.getMyJobs = async (req, res) => {
 
 exports.getAllJobs = async (req, res) => {
     try {
-        const { location, minBudget, search } = req.query;
-        let userId = null;
-        let workerId = null;
-
-        const authHeader = req.headers.authorization;
-        if (authHeader && authHeader.startsWith("Bearer ")) {
-            try {
-                const token = authHeader.split(" ")[1];
-                const decoded = jwt.verify(token, process.env.JWT_SECRET);
-                userId = decoded.id;
-
-                const worker = await Worker.findOne({ where: { userId } });
-                workerId = worker ? worker.id : null;
-            } catch (err) {
-
-            }
+        const { location, minBudget, search, limit } = req.query;
+        const userId = req.user ? req.user.id : null;
+        let currentWorkerId = null;
+        if (userId) {
+            const worker = await Worker.findOne({ where: { userId } });
+            if (worker) currentWorkerId = worker.id;
         }
 
         let whereClause = { status: 'open' };
@@ -140,6 +152,7 @@ exports.getAllJobs = async (req, res) => {
 
         const jobs = await Job.findAll({
             where: whereClause,
+            limit : limit ? parseInt(limit) : undefined,
             include: [
                 {
                     model: Employer,
@@ -148,14 +161,15 @@ exports.getAllJobs = async (req, res) => {
                 {
                     model: Application,
                     required: false,
-                    attributes: ['id', 'workerId']
+                    attributes: ['workerId']
                 }
             ],
             order: [['createdAt', 'DESC']]
         });
         const formattedJobs = jobs.map(job => {
             const jobJson = job.toJSON();
-            jobJson.hasApplied = workerId ? job.Applications.some(app => app.workerId === workerId) : false;
+            jobJson.hasApplied = job.Applications.some(app => app.workerId === currentWorkerId);
+            delete jobJson.Applications;
             return jobJson;
         })
         res.json(formattedJobs);
@@ -235,16 +249,37 @@ exports.getWorkerStats = async (req, res) => {
 
 exports.getEmployerStats = async (req, res) => {
     try {
-        const employer = await Employer.findOne({ where: { userId:req.user.id } });
-        if (!employer) {
-            console.log("No employer profile found for user:", req.user.id);
-            return res.status(404).json({ totalJobs: 0, activeJobs: 0 });
-        }
+        const employer = await Employer.findOne({ where: { userId: req.user.id } });
+        if (!employer) return res.json({ totalJobs: 0, activeJobs: 0 });
+
         const totalJobs = await Job.count({ where: { employerId: employer.id } });
         const activeJobs = await Job.count({ where: { employerId: employer.id, status: 'in-progress' } });
         res.json({ totalJobs, activeJobs });
     } catch (error) {
-        console.error("STATS ERROR:", error);
         res.status(500).json({ error: "Internal Server Error" });
+    }
+};
+
+exports.getRecommendedJobs = async (req, res) => {
+    try {
+        const worker = await Worker.findOne({ where: { userId: req.user.id } });
+        if (!worker) return res.json([]);
+
+        let recommendations;
+        try {
+            const openJobs = await Job.findAll({ where: { status: 'open' } });
+            recommendations = await aiService.getMathScores(openJobs[0], [worker]);
+        } catch (aiErr) {
+            console.log("AI Service offline, falling back to standard list");
+        }
+
+        const jobs = await Job.findAll({
+            where: { status: 'open'},
+            include: [{ model: Employer, attributes: ['companyName'] }]
+        });
+        res.json(jobs);
+    } catch (error) {
+        console.error("RECS ERROR:", error);
+        res.status(500).json({ error: error.message });
     }
 };

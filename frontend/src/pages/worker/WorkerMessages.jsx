@@ -1,42 +1,22 @@
 import { useState, useEffect } from 'react';
-import { io } from 'socket.io-client';
-import API from '../../api/axios';
 import { useLocation } from 'react-router-dom';
-import { Send, User, Search, MoreVertical, MessageSquare } from 'lucide-react';
+import API from '../../api/axios';
+import { useAuth } from '../../context/AuthContext';
+import { Send, MessageSquare, User as UserIcon, MoreVertical, Search } from 'lucide-react';
+import { io } from 'socket.io-client';
 
 const socket = io("http://localhost:5000");
 
 export default function WorkerMessages() {
     const location = useLocation();
+    const { user } = useAuth();
+
     const incomingContactId = location.state?.contactId;
 
     const [chats, setChats] = useState([]);
     const [activeChat, setActiveChat] = useState(null);
-    const [input, setInput] = useState('');
     const [messages, setMessages] = useState([]);
-
-    useEffect(() => {
-        if (User) {
-            socket.emit('join', User.id);
-        }
-
-        socket.on('receive_message', (newMessage) => {
-            if (activeChat && newMessage.senderId === activeChat.id) {
-                setMessages((prev) => [...prev, newMessage]);
-            }
-        });
-        return () => socket.off('receive_message');
-    }, [User, activeChat])
-
-    // auto select logic
-    useEffect(() => {
-        if (incomingContactId && chats.length > 0) {
-            const existingChat = chats.find(c => c.id === incomingContactId);
-            if (existingChat) {
-                setActiveChat(existingChat);
-            }
-        }
-    }, [incomingContactId, chats]);
+    const [input, setInput] = useState('');
 
     // fetch messages whenever there is new chat
     useEffect(() => {
@@ -45,12 +25,11 @@ export default function WorkerMessages() {
                 const { data } = await API.get('/messages/conversations/list');
 
                 // map the data
-                const formattedChats = data.map(user => ({
-                    id: user.id,
-                    name: user.role === 'employer' ? user.Employer?.companyName : `${user.Worker?.firstName}${user.Worker?.lastName}`,
-                    lastMsg: "Click to view messages"
+                const formatted = data.map(c => ({
+                    id: c.id,
+                    name: c.role === 'employer' ? c.Employer?.companyName : `${c.Worker?.firstName}${c.Worker?.lastName}`
                 }));
-                setChats(formattedChats);
+                setChats(formatted);
             } catch (err) {
                 console.error("Could not fetch conversation list");
             }
@@ -58,22 +37,44 @@ export default function WorkerMessages() {
         fetchConversations();
     }, []);
 
+    // logic to handle the "Chat" button
+    useEffect(() => {
+        if (incomingContactId && chats.length >= 0) {
+            const existingChat = chats.find(c => c.id === incomingContactId);
+            if (existingChat) {
+                setActiveChat(existingChat);
+            } else if (incomingContactId) {
+                API.get(`contact-info/${incomingContactId}`).then(({ data }) => {
+                    const newPerson = { id: data.id, name: data.name };
+                    setChats(prev => [newPerson, ...prev]);
+                    setActiveChat(newPerson);
+                }).catch(err => console.error("Contact fetch error", err));
+            }
+        }
+    }, [incomingContactId, chats.length]);
+
+    //socket.io for message receiving
+    useEffect(() => {
+        if (user?.id) {
+            socket.emit('join', user.id);
+        }
+
+        socket.on('receive_message', (data) => {
+            if (activeChat && data.senderId === activeChat.id) {
+                setMessages((prev) => [...prev, data]);
+            }
+        });
+        return () => socket.off('receive_message');
+    }, [user, activeChat])
+
     // fetch message for specific chat
     useEffect(() => {
         if (activeChat) {
-            const fetchMessages = async () => {
-                try {
-                    const { data } = await API.get(`/messages/${activeChat.id}`);
-                    setMessages(data);
-                } catch (err) {
-                    console.error("Could not fetch messages");
-                }
+            const fetchMgs = async () => {
+                const { data } = await API.get(`/messages/${activeChat.id}`);
+                setMessages(data);
             };
-            fetchMessages();
-
-            // poll for new messages every 4 seconds
-            const interval = setInterval(fetchMessages, 4000);
-            return () => clearInterval(interval);
+            fetchMgs();
         }
     }, [activeChat]);
 
@@ -86,7 +87,9 @@ export default function WorkerMessages() {
                 receiverId: activeChat.id,
                 content: input
             });
-
+            // emit to socket server
+            socket.emit('send_message', data);
+            // add to local UI
             setMessages([...messages, data]); // adds message to UI
             setInput(''); // CLEARS the text box
         } catch (err) {
@@ -132,7 +135,9 @@ export default function WorkerMessages() {
                                 </div>
                                 <h3 className="font-bold text-slate-800">{activeChat.name}</h3>
                             </div>
+                            <MoreVertical size={18} className="text-slate-300" />
                         </div>
+
                         {/* Message Display */}
                         <div className="flex-1 p-6 overflow-y-auto space-y-4">
                             {messages.map((msg, index) => (

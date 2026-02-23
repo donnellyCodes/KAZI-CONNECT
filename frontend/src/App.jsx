@@ -31,6 +31,8 @@ import MyJobs from './pages/employer/MyJobs';
 import ViewApplicants from './pages/employer/ViewApplicants';
 import EmployerMessages from './pages/employer/EmployerMessages';
 
+import AIInspector from './pages/admin/AIInspector';
+import AdminJobs from './pages/admin/AdminJobs';
 
 function App() {
   return (
@@ -54,6 +56,20 @@ function App() {
             <AdminLayout>
               <AdminUsers />
             </AdminLayout>
+          </ProtectedRoute>
+        } />
+
+        <Route path="/admin/ai-inspector" element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminLayout>
+              <AIInspector />
+            </AdminLayout>
+          </ProtectedRoute>
+        } />
+
+        <Route path="/admin/jobs" element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminLayout><AdminJobs /></AdminLayout>
           </ProtectedRoute>
         } />
 

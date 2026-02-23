@@ -28,3 +28,23 @@ exports.updateProfile = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+exports.getContactInfo = async (req, res) => {
+    try {
+        const user = await User.findByPk(req.params.userId, {
+            include: [
+                { model: Worker, attributes: ['firstName', 'lastName'] },
+                { model: Employer, attributes: ['companyName'] }
+            ]
+        });
+        if (!user) return res.status(404).json({ message: "User not found" });
+
+        res.json({
+            id: user.id,
+            role: user.role,
+            name: user.role === 'worker' ? `${user.Worker?.firstName} ${user.Worker?.lastName}` : user.Employer?.companyName
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};

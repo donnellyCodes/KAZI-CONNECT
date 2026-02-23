@@ -14,6 +14,7 @@ export default function ViewApplicants() {
         const fetchApplicants = async () => {
             try {
                 const { data } = await API.get(`/jobs/${jobId}/applicants`);
+                console.log("Data receivec from API:", data);
                 setApplicants(data);
             } catch (err) {
                 console.error("Error fetching applications:", err);
@@ -38,7 +39,11 @@ export default function ViewApplicants() {
     };
 
     // navigate to chat with this worker
-    const startChat = (workerUserId) => {
+    const startChat = (id) => {
+        console.log("DEBUG: Redirecting to chat with User ID:", workerUserId);
+
+        if (!id) return alert("Worker ID not found");
+
         navigate('/employer/messages', { state: { contactId:workerUserId } });
     };
 
@@ -63,8 +68,12 @@ export default function ViewApplicants() {
                 </div>
             ) : (
                 <div className="grid gap-6">
-                    {applicants.map((map) => (
+                    {applicants.map((app) => (
                         <div key={app.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start gap-6 hover:shadow-md transition-shadow">
+                            {/* AI Ribbon */}
+                            <div className="absolute top-0 right-0 bg-amber-500 text-white px-4 py-1 rounded-bl-xl text-xs font-bold shadow-sm">
+                                AI MATCH: {app.matchScore || '85'}%
+                            </div>
                             {/* Worker Info section */}
                             <div className="flex-1 space-y-4">
                                 <div className="flex items-center gap-4">
@@ -90,7 +99,14 @@ export default function ViewApplicants() {
                             {/* Action buttons section */}
                             <div className="flex flex-row md:flex-col gap-3 w-full md:w-48">
                                 <button
-                                    onClick={() => startChat(app.Worker?.userId)}
+                                    onClick={() => {
+                                        const messagingId = app.Worker?.User?.id || app.Worker?.userId;
+                                        if (messagingId) {
+                                            navigate('/employer/messages', { state: { contactId: messagingId } });
+                                        } else {
+                                            alert("Cannot start chat: Messaging ID missing for this worker.");
+                                        }
+                                    }}
                                     className="flex-1 flex items-center justify-center gap-2 bg-white border border-slate-200 text-slate-700 px-4 py-2.5 rounded-xl hover:bg-slate-50 transition-all font-bold text-sm"
                                 >
                                     <MessageSquare size={18} /> Chat
