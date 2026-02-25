@@ -7,8 +7,9 @@ const Job = sequelize.define('Job', {
     description: { type: DataTypes.TEXT, allowNull: false },
     location: { type: DataTypes.STRING, allowNull: false },
     budget: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
+    category: { type: DataTypes.STRING },
     status: {
-        type: DataTypes.ENUM('open', 'in-progress', 'completed', 'cancelled'),
+        type: DataTypes.ENUM('open', 'in-progress', 'completed', 'cancelled', 'disputed'),
         defaultValue: 'open'
     }
 });

@@ -4,6 +4,9 @@ import Register from './pages/Register';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
 import Home from './pages/Home';
+import VerifyOTP from './pages/VerifyOTP';
+import AdminDisputes from './pages/admin/AdminDisputes';
+import AdminSettings from './pages/admin/AdminSettings';
 
 // layouts
 import AdminLayout from './layouts/AdminLayout';
@@ -41,7 +44,8 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-
+        <Route path="/verify-otp" element={<VerifyOTP />} />
+ 
         {/* Protected Admin Route */}
         <Route path="/admin" element={
           <ProtectedRoute allowedRoles={['admin']}>
@@ -73,6 +77,18 @@ function App() {
           </ProtectedRoute>
         } />
 
+        <Route path="/admin/disputes" element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminLayout><AdminDisputes /></AdminLayout>
+          </ProtectedRoute>
+        } />
+
+        <Route path="/admin/settings" element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminLayout><AdminSettings /></AdminLayout>
+          </ProtectedRoute>
+        } />
+ 
         {/* Protected Worker route*/ }
         <Route path="/worker" element={
             <ProtectedRoute allowedRoles={['worker']}>

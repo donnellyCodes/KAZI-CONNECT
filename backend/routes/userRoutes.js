@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getProfile, updateProfile } = require('../controllers/profileController');
 const { getAllUsers, verifyWorker } = require('../controllers/adminController');
+const { getAdminStats } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 
@@ -11,6 +12,7 @@ router.put('/profile', protect, updateProfile);
 
 // admin routes
 router.get('/admin/users', protect, authorize('admin'), getAllUsers);
+router.get('/admin/stats', protect, authorize('admin'), getAdminStats);
 router.put('/admin/verify', protect, authorize('admin'), verifyWorker);
 
 // file upload route

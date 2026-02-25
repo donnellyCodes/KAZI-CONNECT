@@ -9,6 +9,7 @@ const Payment = require('./payment');
 const Review = require('./review');
 const Verification = require('./verification');
 const Message = require('./Message');
+const Dispute = require('./Dispute');
 
 User.hasOne(Worker, { foreignKey: 'userId', onDelete: 'CASCADE' });
 Worker.belongsTo(User, { foreignKey: 'userId' });
@@ -50,4 +51,11 @@ Review.belongsTo(User, { as: 'Reviewee', foreignKey: 'revieweeId' });
 Worker.hasOne(Verification, { foreignKey: 'workerId' });
 Verification.belongsTo(Worker, { foreignKey: 'workerId' });
 
-module.exports = { sequelize, User, Worker, Employer, Skill, Job, Application, Payment, Review, Verification, Message};
+// User and dispute
+User.hasMany(Dispute, { foreignKey: 'userId' });
+Dispute.belongsTo(User, { foreignKey: 'userId' });
+
+Job.hasMany(Dispute, { foreignKey: 'jobId' });
+Dispute.belongsTo(Job, { foreignKey: 'jobId' });
+
+module.exports = { sequelize, User, Worker, Employer, Skill, Job, Application, Payment, Review, Verification, Message, Dispute};

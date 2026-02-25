@@ -50,6 +50,7 @@ app.use('/api/jobs', jobRoutes);
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/messages', messageRoutes);
 app.use('/uploads', express.static('uploads'));
+app.use('/api/disputes', require('./routes/disputeRoutes'));
  
 const PORT = process.env.PORT || 5000;
 

@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import API from '../../api/axios';
 
 export default function PostJob() {
-    const [jobData, setJobData] = useState({ title: '', description: '', location: '', budget: '' });
+    const CATEGORIES = ["Electrician", "House help", "Mason", "Contractor", "House Keeping", "Carpenter", "Painter"];
+    const [jobData, setJobData] = useState({ title: '', description: '', location: '', budget: '', category: '' });
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
@@ -28,12 +29,15 @@ export default function PostJob() {
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-slate-600">Detailed Description</label>
-                    <textarea
-                        required className="w-full mt-1 p-2 border rounded-md h-32"
-                        placeholder="Describe the tasks, tools required, etc."
-                        onChange={(e) => setJobData({...jobData, description: e.target.value})}
-                    />
+                    <label className="block text-sm font-medium text-slate-600">Job Category</label>
+                    <select
+                        required
+                        className="w-full mt-1 p-2 border rounded-md bg-white"
+                        onChange={(e) => setJobData({...jobData, category: e.target.value})}
+                    >
+                        <option value="">What type of worker do you need?</option>
+                        {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                    </select>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                     <div>

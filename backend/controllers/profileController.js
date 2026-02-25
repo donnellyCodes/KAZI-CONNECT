@@ -18,10 +18,20 @@ exports.getProfile = async (req, res) => {
 // @desc Update profile
 exports.updateProfile = async (req, res) => {
     try {
-        if (req.user.role === 'worker') {
-            await Worker.update(req.body, { where: { userId: req.user.id } });
-        } else {
+        const userId = req.user.id;
+        const { firstName, lastName, location, availability, skills, experience } = req.body;
+        const role = req.user.role;
+
+        if (role === 'worker') {
+            await Worker.update({firstName, lastName, location, availability, skills, experience}, { where: { userId: req.user.id } });
+            // fetch the freshly updated data to send back to frontend
+            const updatedProfile = await Worker.findOne({ where: { userId } });
+            return res.json(updatedProfile);
+        }
+        if (role === 'employer') {
             await Employer.update(req.body, { where: { userId: req.user.id } });
+            const updatedProfile = await Employer.findOne({ where: { userId } });
+            return res.json(updatedProfile);
         }
         res.json({ message: "Profile updated Successfully" });
     } catch (error) {

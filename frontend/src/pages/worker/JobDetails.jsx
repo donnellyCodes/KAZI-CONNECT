@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import API from '../../api/axios';
-import { MapPin, DollarSign, Calendar, ArrowLeft } from 'lucide-react';
+import { MapPin, DollarSign, Calendar, ArrowLeft, AlertTriangle } from 'lucide-react';
 
 export default function JobDetails() {
     const { id } = useParams();
@@ -31,6 +31,18 @@ export default function JobDetails() {
             alert(err.response?.data?.message || "Application failed");
         } finally {
             setSubmitting(false);
+        }
+    };
+
+    const raiseDispute = async () => {
+        const reason = prompt("Enter reason for dispute (e.g., Employer refused to pay):");
+        if (reason) {
+            try {
+                await API.post('/disputes', { jobId: job.id, reason });
+                alert("Dispute raied. Admin will contact you.");
+            } catch (err) {
+                alert("Failed to raise dispute. Ensure you are logged in.");
+            }
         }
     };
 
@@ -90,6 +102,12 @@ export default function JobDetails() {
                     </div>
                 </div>
             </div>
+            <button
+                onClick={raiseDispute}
+                className="mt-4 text-xs text-red-500 font-bold hover:underline flex items-center gap-1"
+            >
+                <AlertTriangle size={14} /> Report an Issue / Raise Dispute
+            </button>
         </div>
     );
 }

@@ -11,9 +11,13 @@ const AI_SERVICE_URL = "http://localhost:8000/match";
 
 exports.getMatchScores = async (job, workers) => {
     try {
+        // cleans and extracts keywords from Job Title and Description
+        const cleanText = (text) => text.toLowerCase().replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "").split(/\s+/);
+        const jobKeywords = `${job.title} ${job.description}`.replace(/[^a-zA-Z ]/g, "").split(" ");
+
         const jobData = {
             id: job.id,
-            skills: job.title.split(' ').concat(job.description.split(' ')), // this is for keyword extraction
+            skills: [job.category, job.title, job.description],
             location: job.location,
             availability: true
         };
@@ -31,7 +35,7 @@ exports.getMatchScores = async (job, workers) => {
 
             return {
                 id: w.id,
-                skills: w.skills ? w.skills.split(',').map(s => s.trim()) : [],
+                skills: w.skills ? w.skills.toLowerCase().split(',').map(s => s.trim()) : [],
                 location: w.location || '',
                 availability: w.availability,
                 rating: parseFloat(stats[0].dataValues.avgRating) || 5.0,

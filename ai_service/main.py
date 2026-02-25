@@ -8,6 +8,9 @@ import math
 
 app = FastAPI()
 
+# words that don't count as skills are ignored
+STOP_WORDS = {"need", "looking", "urgent", "help", "please", "worker", "job", "required", "nairobi", "kenya", "professional"}
+
 class Entity(BaseModel):
     id: str
     skills: List[str]
@@ -19,34 +22,43 @@ class Entity(BaseModel):
 class MatchRequest(BaseModel):
     job: Entity
     workers: List[Entity]
+    
+def clean_keywords(text_list):
+    """Removes common noise words from the keyword list."""    
+    return [word.lower() for word in text_list if word.lower() not in STOP_WORDS and len(word) > 2]
 
-def get_fuzzy_score(list1, list2):
-    """calculates the number of skills that match"""
-    if not list1: return 0
+def get_skill_score(job_skills, worker_skills):
+    if not job_skills or not worker_skills: return 0.0
+    
     matches = 0
-    for s1 in list1:
-        best_match = difflib.get_close_matches(s1.lower(), [s.lower() for s in list2], n=1, cutoff=0.8)
-        if best_match:
+    clean_job = [j for j in job_skills if len(j) > 2]
+    clean_worker = [w for w in worker_skills if len(w) > 2]
+    
+    for js in clean_job:
+        # a stricter cutoff to ensure that "Electrician" matches "Electrical" but "plumber" does not match "Painter"
+        match = difflib.get_close_matches(js, clean_worker, n=1, cutoff=0.85)
+        if match:
             matches += 1
-    return matches / len(list1)
+            print(f"DEBUG: Match found! Job Keyword '{js}' matched worker skill '{match[0]}'")
+    return matches / len(clean_job) if clean_job else 0.0
 
 @app.post("/match")
 async def calculate_matches(data: MatchRequest):
-    ranked_results = []
-    job = data.job
+    results = []
+    job_category = data.job.skills[0] if data.job.skills else ""
 
     for worker in data.workers:
-        skill_score = get_fuzzy_score(job.skills, worker.skills)
-
+        worker_skill = worker.skills[0] if worker.skills else ""
+        skill_score = 1.0 if job_category.lower() == worker_skill.lower() else 0.0
+        # if there is 0 skill match, we don't recommend this worker at all
+        if skill_score == 0:
+            if worker_skill.lower() in " ".join(data.job.skills).lower():
+                skill_score = 0.5
+        
         location_score = 1.0 if job.location.lower() == worker.location.lower() else 0.0
+        trust_score = worker.rating / 5.0
 
-        availability_score = 1.0 if worker.availability else 0.0
-
-        rating_factor = worker.rating / 5.0
-        experience_factor = min(worker.jobs_completed / 20, 1.0)
-        trust_score = (rating_factor * 0.7) + (experience_factor * 0.3)
-
-        final_score = (skill_score * 0.5) + (location_score * 0.2) + (availability_score * 0.1) + (trust_score * 0.2)
+        final_score = (skill_score * 0.7) + (location_score * 0.15) + (trust_score * 0.15)
         results.append({
             "workedId": worker.id,
             "matchScore": round(final_score * 100, 1), # converts to percentage
@@ -57,7 +69,7 @@ async def calculate_matches(data: MatchRequest):
         })
     # sort score in descending order
     results.sort(key=lambda x: x['matchScore'], reverse=True)
-    return ranked_results
+    return results
 
 if __name__ == "__main__":
     import uvicorn

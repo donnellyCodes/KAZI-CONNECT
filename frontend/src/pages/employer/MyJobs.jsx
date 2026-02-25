@@ -21,6 +21,18 @@ export default function MyJobs() {
         fetchMyJobs();
     }, []);
 
+    const raiseDispute = async (jobId) => {
+        const reason = prompt("Enter reason for dispute (e.g., Worker did not show up):");
+        if (reason) {
+            try {
+                await API.post('/disputes', { jobId: jobId, reason });
+                alert("Dispute raised. Admin will investigate.");
+            } catch (err) {
+                alert("Error raising dispute.");
+            }
+        }
+    };
+
     if (loading) return <div className="p-10 text-emerald-600 animate-pulse font-bold">Loading your jobs...</div>
 
     return (
@@ -82,6 +94,12 @@ export default function MyJobs() {
                                     </button>
                                 )}
                             </div>
+                            <button
+                                onClick={() => raiseDispute(job.id)}
+                                className="text-xs text-red-500 hover:text-red-700 mt-2 font-medium"
+                            >
+                                Raise Dispute
+                            </button>
                         </div>
                     ))}
                 </div>

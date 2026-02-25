@@ -23,7 +23,6 @@ export default function Register() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-
         // structure backend data
         const submissionData = {
             email: formData.email,
@@ -35,7 +34,8 @@ export default function Register() {
 
         try {
             const { data } = await API.post('/auth/register', submissionData);
-            login(data.user, data.token); // automatic login after registration
+            // redirect to OTP page
+            navigate('/verify-otp', { state: { email: formData.email } });
         } catch (err) {
             alert("Registration failed: " + (err.response?.data?.error || err.message));
         } 
