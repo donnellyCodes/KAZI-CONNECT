@@ -6,7 +6,7 @@ import { Send, User, Search, MoreVertical, MessageSquare, Phone, Video, Papercli
 import { io } from 'socket.io-client';
 import clsx from 'clsx';
 
-const socket = io('http://localhost:5000');
+const socket = io(import.meta.env.VITE_SOCKET_URL);
 
 export default function EmployerMessages() {
     const location = useLocation();
