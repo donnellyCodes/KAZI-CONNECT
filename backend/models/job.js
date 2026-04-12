@@ -10,8 +10,44 @@ const Job = sequelize.define('Job', {
     category: { type: DataTypes.STRING },
     status: {
         type: DataTypes.ENUM('open', 'in-progress', 'completed', 'cancelled', 'disputed'),
-        defaultValue: 'open'
+        defaultValue: 'open',
+        index: true
+    },
+    employerId: {
+        type: DataTypes.UUID,
+        allowNull: false,
+        references: {
+            model: 'Employers',
+            key: 'id'
+        },
+        index: true
+    },
+    hiredWorkerId: {
+        type: DataTypes.UUID,
+        references: {
+            model: 'Workers',
+            key: 'id'
+        },
+        index: true
     }
+}, {
+    indexes: [
+        {
+            fields: ['status']
+        },
+        {
+            fields: ['employerId']
+        },
+        {
+            fields: ['location']
+        },
+        {
+            fields: ['category']
+        },
+        {
+            fields: ['createdAt']
+        }
+    ]
 });
 
 module.exports = Job

@@ -8,8 +8,8 @@ const { protect } = require('../middleware/auth');
 // all message routes require login
 router.use(protect);
 
-router.post('/', sendMessage);
+router.post('/send', sendMessage);
+router.get('/conversation/:otherUserId', getMessages);
 router.get('/conversations/list', getConversations);
-router.get('/:otherUserId', getMessages);
 
 module.exports = router;

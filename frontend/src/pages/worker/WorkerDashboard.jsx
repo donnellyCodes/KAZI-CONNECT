@@ -1,32 +1,70 @@
 import { useState, useEffect } from 'react';
 import API from '../../api/axios';
-import { Briefcase, CheckCircle, Clock, ArrowRight, MessageSquare, Zap, MapPin, DollarSign } from 'lucide-react';
+import { Briefcase, CheckCircle, Clock, ArrowRight, MessageSquare, Zap, MapPin, DollarSign, TrendingUp, Users, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-// A simple reusable component for job listings
 const JobCard = ({ job }) => (
-    <div className="bg-white p-5 rounded-2xl border border-slate-200 hover:border-indigo-400 transition-all shadow-sm flex justify-between items-center group">
+    <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200">
+        <div className="flex justify-between items-center">
+            <div className="flex-1">
+                <div className="flex items-start justify-between mb-2">
+                    <h4 className="font-bold text-gray-900 text-lg group-hover:text-blue-600 transition-colors">
+                        {job.title}
+                    </h4>
+                    {job.matchScore && (
+                        <span className="ml-2 px-2 py-1 bg-yellow-100 text-yellow-700 text-xs font-medium rounded-full">
+                            AI MATCH: {job.matchScore}%
+                        </span>
+                    )}
+                </div>
+                <p className="text-gray-600 text-sm mb-3 line-clamp-2">{job.description}</p>
+                <div className="flex flex-wrap gap-2 text-sm">
+                    <div className="flex items-center gap-1 text-gray-500">
+                        <MapPin size={14} />
+                        {job.location}
+                    </div>
+                    <div className="flex items-center gap-1 text-gray-500">
+                        <DollarSign size={14} />
+                        KES {job.budget}
+                    </div>
+                </div>
+            </div>
+            <Link 
+                to={`/worker/jobs/${job.id}`} 
+                className="ml-4 p-3 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all"
+            >
+                <ArrowRight size={20} />
+            </Link>
+        </div>
+    </div>
+);
+
+const StatCard = ({ title, value, icon: Icon, color, trend }) => (
+    <div className={`p-6 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow ${color === 'primary' ? 'bg-blue-600 text-white' : 'bg-white'}`}>
+        <div className="flex items-center justify-between mb-4">
+            <Icon className={color === 'primary' ? 'text-blue-200' : 'text-blue-500'} size={32} />
+            {trend && (
+                <div className="flex items-center gap-1 text-sm">
+                    <TrendingUp size={16} />
+                    <span className={color === 'primary' ? 'text-blue-200' : 'text-green-600'}>
+                        {trend}
+                    </span>
+                </div>
+            )}
+        </div>
         <div>
-        <h4 className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{job.title}</h4>
-        <div className="flex gap-3 mt-1">
-            <span className="text-xs text-slate-400 flex items-center gap-1"><MapPin size={12}/> {job.location}</span>
-            <span className="text-xs text-slate-400 flex items-center gap-1"><DollarSign size={12}/> KES {job.budget}</span>
+            <p className={`text-sm font-medium ${color === 'primary' ? 'text-blue-100' : 'text-gray-600'}`}>
+                {title}
+            </p>
+            <h3 className={`text-3xl font-black ${color === 'primary' ? 'text-white' : 'text-gray-900'}`}>
+                {value}
+            </h3>
         </div>
-        {/* Show match score if AI calculated it */}
-        {job.matchScore && (
-            <span className="mt-2 inline-block text-[10px] font-black bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full uppercase">
-            AI MATCH: {job.matchScore}%
-            </span>
-        )}
-        </div>
-        <Link to={`/worker/jobs/${job.id}`} className="p-2 bg-indigo-50 text-indigo-600 rounded-xl group-hover:bg-indigo-600 group-hover:text-white transition-all">
-        <ArrowRight size={20} />
-        </Link>
     </div>
 );
 
 export default function WorkerDashboard() {
-    const [stats, setStats] = useState({ totalApplications: 0, acceptedApplications: 0});
+    const [stats, setStats] = useState({ totalApplications: 0, acceptedApplications: 0 });
     const [recentJobs, setRecentJobs] = useState([]);
     const [activeJobs, setActiveJobs] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -38,11 +76,10 @@ export default function WorkerDashboard() {
                 const statsRes = await API.get('/jobs/worker-stats');
                 const jobRes = await API.get('/jobs?limit=3');
                 setStats(statsRes.data);
-                setRecentJobs(jobRes.data.slice(0, 3)); // only show the top 3
+                setRecentJobs(jobRes.data.filter(job => job.status === 'open').slice(0, 3));
                 const myJobsRes = await API.get('/jobs');
-                const hired = myJobsRes.data.filter(job => job.hasApplied && job.status === 'in-progress');
+                const hired = myJobsRes.data.filter(job => job.status === 'in-progress');
                 setActiveJobs(hired);
-
             } catch (err) {
                 console.error("Dashboard fetch error:", err);
             } finally {
@@ -57,102 +94,164 @@ export default function WorkerDashboard() {
             try {
                 const { data } = await API.get('/jobs/recommendations');
                 setRecommendations(data);
-            } catch (err) { console.error(err); }
+            } catch (err) { 
+                console.error(err); 
+            }
         };
         fetchAI();
     }, []);
 
-    if (loading) return <div className="p-10 text-indigo-600 font-bold">Loading your dashboard...</div>
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-8">
+            {/* Welcome Section */}
+            <div className="bg-linear-to-r from-blue-600 to-blue-700 rounded-2xl p-8 text-white">
+                <div className="max-w-3xl">
+                    <h1 className="text-3xl font-bold mb-2">Welcome back!</h1>
+                    <p className="text-blue-100 text-lg">
+                        Here's what's happening with your job search today.
+                    </p>
+                </div>
+            </div>
+
+            {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-indigo-600 p-6 rounded-3xl text-white shadow-lg">
-                    <Briefcase className="mb-4 opacity-50" size={32} />
-                    <p className="text-indigo-100 text-sm font-medium">Total Applications</p>
-                    <h3 className="text-4xl font-black">{stats.totalApplications}</h3>
-                </div>
-                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-                    <CheckCircle className="mb-4 text-green-500" size={32} />
-                    <p className="text-slate-500 text-sm font-medium">Jobs hired</p>
-                    <h3 className="text-4xl font-black text-slate-800">{stats.acceptedApplications}</h3>
-                </div>
-                <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-                    <Clock className="mb-4 text-amber-500" size={32} />
-                    <p className="text-slate-500 text-sm font-medium">Active Tasks</p>
-                    <h3 className="text-4xl font-black text-slate-800">{activeJobs.length}</h3>
-                </div>
-                <div className="bg-indigo-50 p-6 rounded-3xl mb-8">
-                    <h3 className="font-bold text-indigo-900 mb-4 flex items-center gap-2">
-                        <Zap className="text-amber-500" /> AI recommended for you
-                    </h3>
-                    <div className="grid gap-4">
-                        {recommendations.map(job => (
-                            <JobCard key={job.id} job={job} />
-                        ))}
+                <StatCard
+                    title="Total Applications"
+                    value={stats.totalApplications}
+                    icon={Briefcase}
+                    color="primary"
+                    trend="+12%"
+                />
+                <StatCard
+                    title="Jobs Hired"
+                    value={stats.acceptedApplications}
+                    icon={CheckCircle}
+                    color="success"
+                />
+                <StatCard
+                    title="Active Jobs"
+                    value={activeJobs.length}
+                    icon={Clock}
+                    color="default"
+                />
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
+                {/* AI Recommendations */}
+                {recommendations.length > 0 && (
+                    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm h-full">
+                        <div className="p-6 border-b border-gray-200">
+                            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                                <Zap className="text-amber-500" size={24} />
+                                AI Recommended for You
+                            </h2>
+                        </div>
+                        <div className="p-6">
+                            <div className="grid gap-4">
+                                {recommendations.map(job => (
+                                    <JobCard key={job.id} job={job} />
+                                ))}
+                            </div>
+                            <div className="mt-4 text-center">
+                                <Link to="/worker/jobs" className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+                                    View All Recommendations
+                                    <ArrowRight size={16} />
+                                </Link>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* New Opportunities */}
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm h-full">
+                    <div className="p-6 border-b border-gray-200">
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-xl font-bold text-gray-900">New Opportunities</h2>
+                            <Link to="/worker/jobs" className="inline-flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors">
+                                Browse All
+                                <ArrowRight size={16} />
+                            </Link>
+                        </div>
+                    </div>
+                    <div className="p-6">
+                        {recentJobs.length > 0 ? (
+                            <div className="grid gap-4">
+                                {recentJobs.map(job => (
+                                    <div key={job.id} className="bg-gray-50 p-4 rounded-xl">
+                                        <div className="flex justify-between items-center">
+                                            <div>
+                                                <h4 className="font-bold text-gray-900">{job.title}</h4>
+                                                <div className="flex gap-4 mt-2 text-sm text-gray-500">
+                                                    <span className="flex items-center gap-1">
+                                                        <MapPin size={14} />
+                                                        {job.location}
+                                                    </span>
+                                                    <span className="flex items-center gap-1">
+                                                        <DollarSign size={14} />
+                                                        KES {job.budget}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <Link to={`/worker/jobs/${job.id}`} className="text-blue-600">
+                                                <ArrowRight size={20} />
+                                            </Link>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-12 text-gray-500">
+                                <Briefcase size={48} className="mx-auto mb-4 text-gray-300" />
+                                <p className="font-medium">No new opportunities available right now.</p>
+                                <p className="text-sm mt-2">Check back later for new job postings.</p>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
-            
-            {/* Active Projects Section */}
+
+            {/* Active Projects */}
             {activeJobs.length > 0 && (
-                <div className="space-y-4">
-                    <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                        <span className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></span>
-                        Current Projects
-                    </h3>
-                    <div className="grid gap-4">
-                        {activeJobs.map(job => (
-                            <div key={job.id} className="p-5 bg-white border border-slate-200 rounded-2xl flex justify-between items-center shadow-sm">
-                                <div>
-                                    <h4 className="font-bold text-slate-800 text-lg">{job.title}</h4>
-                                    <p className="text-xs text-emerald-600 font-black uppercase tracking-widest mt-1">Status: In Progress</p>
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm">
+                    <div className="p-6 border-b border-gray-200">
+                        <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                            Current Projects
+                        </h2>
+                    </div>
+                    <div className="p-6">
+                        <div className="grid gap-4">
+                            {activeJobs.map(job => (
+                                <div key={job.id} className="bg-gray-50 p-4 rounded-xl">
+                                    <div className="flex justify-between items-center">
+                                        <div>
+                                            <h4 className="font-bold text-gray-900 text-lg mb-1">{job.title}</h4>
+                                            <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                                                In Progress
+                                            </span>
+                                        </div>
+                                        <Link
+                                            to="/worker/messages"
+                                            state={{ contactId: job.Employer?.userId }}
+                                            className="p-3 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all"
+                                        >
+                                            <MessageSquare size={20} />
+                                        </Link>
+                                    </div>
                                 </div>
-                                <Link
-                                    to="/worker/messages"
-                                    state={{ contactId: job.Employer?.userId }}
-                                    className="p-3 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all"
-                                >
-                                    <MessageSquare size={20} />
-                                </Link>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
                 </div>
             )}
-            <div className="bg-white p-8 rounded-3xl border border-slate-200">
-                <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-bold text-slate-800">New Opportunities</h3>
-                    <Link to="/worker/jobs" className="text-indigo-600 font-bold text-sm flex items-center gap-1">
-                        Browse All <ArrowRight size={16}/>
-                    </Link>
-                </div>
-                <div className="space-y-4">
-                    {recentJobs.map(job => (
-                       <div key={job.id} className="p-4 bg-slate-50 rounded-2xl flex justify-between items-center">
-                            <div>
-                                <h4 className="font-bold text-slate-800">{job.title}</h4>
-                                <p className="text-xs text-slate-500">{job.location} • KES {job.budget}</p>
-                            </div>
-                            <Link to={`/worker/jobs/${job.id}`} className="text-indigo-600"><ArrowRight size={20}/></Link>
-                        </div>
-                    ))}
-                </div>
-                <div className="mt-10">
-                    <h3 className="text-xl font-bold mb-4">Current Projects</h3>
-                    {activeJobs.map(job => (
-                        <div className="p-4 bg-white border border-slate-200 rounded-2xl flex justify-between items-center">
-                            <div>
-                                <p className="font-bold">{job.title}</p>
-                                <p className="text-xs text-emerald-600 font-bold uppercase">Status: In Progress</p>
-                            </div>
-                            <Link to="/worker/messages" className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
-                                <MessageSquare size={18} />
-                            </Link>
-                        </div>
-                    ))}
-                </div>
-            </div>
         </div>
     );
 }

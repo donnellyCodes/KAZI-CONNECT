@@ -13,13 +13,35 @@ export const AuthProvider = ({ children }) => {
         const token = localStorage.getItem('token');
         if (storedUser && token) {
             const parsedUser = JSON.parse(storedUser);
-            setUser(JSON.parse(storedUser));
+            setUser(parsedUser);
             if (window.location.pathname === '/') {
                 navigate(`/${parsedUser.role}`);
             }
         }
         setLoading(false);
     }, []);
+
+    useEffect(() => {
+        const syncAuthAcrossTabs = (event) => {
+            if (event.key !== 'user' && event.key !== 'token' && event.key !== null) {
+                return;
+            }
+
+            const storedUser = localStorage.getItem('user');
+            const token = localStorage.getItem('token');
+
+            if (storedUser && token) {
+                const parsedUser = JSON.parse(storedUser);
+                setUser(parsedUser);
+            } else {
+                setUser(null);
+                navigate('/login');
+            }
+        };
+
+        window.addEventListener('storage', syncAuthAcrossTabs);
+        return () => window.removeEventListener('storage', syncAuthAcrossTabs);
+    }, [navigate]);
 
     const login = (userData, token) => {
         localStorage.setItem('token', token);

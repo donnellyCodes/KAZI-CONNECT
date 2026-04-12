@@ -19,11 +19,33 @@ exports.getProfile = async (req, res) => {
 exports.updateProfile = async (req, res) => {
     try {
         const userId = req.user.id;
-        const { firstName, lastName, location, availability, skills, experience } = req.body;
+        const {
+            firstName,
+            lastName,
+            location,
+            availability,
+            skills,
+            customSkill,
+            yearsOfExperience,
+            experience,
+            cvUrl,
+            idUrl
+        } = req.body;
         const role = req.user.role;
 
         if (role === 'worker') {
-            await Worker.update({firstName, lastName, location, availability, skills, experience}, { where: { userId: req.user.id } });
+            await Worker.update({
+                firstName,
+                lastName,
+                location,
+                availability,
+                skills,
+                customSkill: skills === 'Other' ? customSkill : null,
+                yearsOfExperience,
+                experience,
+                cvUrl,
+                idUrl
+            }, { where: { userId: req.user.id } });
             // fetch the freshly updated data to send back to frontend
             const updatedProfile = await Worker.findOne({ where: { userId } });
             return res.json(updatedProfile);

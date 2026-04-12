@@ -1,0 +1,373 @@
+/* Responsive Design Improvements */
+
+/* Mobile-first approach */
+@media (max-width: 640px) {
+  /* Navigation adjustments */
+  .nav-mobile-hidden {
+    display: none;
+  }
+  
+  .nav-mobile-only {
+    display: block;
+  }
+  
+  /* Sidebar adjustments for mobile */
+  .sidebar-mobile {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out;
+  }
+  
+  .sidebar-mobile.open {
+    transform: translateX(0);
+  }
+  
+  /* Mobile menu overlay */
+  .mobile-menu-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 40;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease-in-out;
+  }
+  
+  .mobile-menu-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  
+  /* Card stacking on mobile */
+  .card-mobile-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  /* Responsive grid adjustments */
+  .grid-responsive {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  /* Mobile form adjustments */
+  .form-mobile-full {
+    width: 100%;
+  }
+  
+  /* Mobile button groups */
+  .button-group-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .button-group-mobile button {
+    width: 100%;
+  }
+  
+  /* Mobile text adjustments */
+  .text-mobile-center {
+    text-align: center;
+  }
+  
+  /* Mobile spacing adjustments */
+  .section-mobile-padding {
+    padding: 1rem;
+  }
+  
+  /* Mobile hero section */
+  .hero-mobile {
+    padding: 2rem 1rem;
+  }
+  
+  .hero-mobile h1 {
+    font-size: 2rem;
+    line-height: 1.2;
+  }
+  
+  /* Mobile stats grid */
+  .stats-mobile-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  
+  /* Mobile job cards */
+  .job-card-mobile {
+    padding: 1rem;
+  }
+  
+  .job-card-mobile .flex {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  /* Mobile filters */
+  .filters-mobile {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    border-top: 1px solid #e5e7eb;
+    padding: 1rem;
+    transform: translateY(100%);
+    transition: transform 0.3s ease-in-out;
+    z-index: 30;
+  }
+  
+  .filters-mobile.open {
+    transform: translateY(0);
+  }
+  
+  /* Mobile search */
+  .search-mobile {
+    position: relative;
+  }
+  
+  .search-mobile input {
+    padding-left: 3rem;
+    font-size: 1rem;
+  }
+  
+  /* Mobile table adjustments */
+  .table-mobile-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Mobile dashboard adjustments */
+  .dashboard-mobile-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .dashboard-mobile-card {
+    margin-bottom: 1rem;
+  }
+  
+  /* Mobile modal adjustments */
+  .modal-mobile {
+    margin: 1rem;
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+  }
+  
+  /* Mobile tooltips */
+  .tooltip-mobile {
+    display: none;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 641px) and (max-width: 1024px) {
+  /* Tablet grid adjustments */
+  .grid-tablet-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .grid-tablet-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  /* Tablet sidebar */
+  .sidebar-tablet {
+    width: 5rem;
+  }
+  
+  .sidebar-tablet .sidebar-text {
+    display: none;
+  }
+  
+  /* Tablet navigation */
+  .nav-tablet-compact {
+    padding: 0.5rem 1rem;
+  }
+  
+  /* Tablet cards */
+  .card-tablet {
+    padding: 1.5rem;
+  }
+  
+  /* Tablet forms */
+  .form-tablet-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+}
+
+/* Large screens */
+@media (min-width: 1025px) {
+  /* Desktop optimizations */
+  .container-desktop {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 2rem;
+  }
+  
+  /* Desktop grid */
+  .grid-desktop-4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  /* Desktop sidebar */
+  .sidebar-desktop {
+    width: 16rem;
+  }
+  
+  /* Desktop cards with hover effects */
+  .card-desktop-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) {
+  /* Remove hover effects on touch devices */
+  .hover-touch-none:hover {
+    transform: none;
+    box-shadow: none;
+  }
+  
+  /* Increase tap targets for touch */
+  .tap-target-large {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Touch-friendly buttons */
+  .button-touch {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+  }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  /* Crisper borders on high DPI */
+  .border-hdpi {
+    border-width: 0.5px;
+  }
+  
+  /* Better icons on high DPI */
+  .icon-hdpi {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  /* Remove animations for users who prefer reduced motion */
+  .animate-reduced-motion {
+    animation: none;
+    transition: none;
+  }
+  
+  /* Instant transitions */
+  .transition-reduced-motion {
+    transition: none;
+  }
+}
+
+/* Print styles */
+@media print {
+  /* Hide unnecessary elements */
+  .no-print {
+    display: none !important;
+  }
+  
+  /* Optimize text for printing */
+  .print-optimized {
+    color: black !important;
+    background: white !important;
+  }
+  
+  /* Ensure links are visible in print */
+  .print-link::after {
+    content: " (" attr(href) ")";
+    font-size: 0.8em;
+    color: #666;
+  }
+}
+
+/* Landscape mobile optimizations */
+@media (max-width: 640px) and (orientation: landscape) {
+  /* Reduce padding in landscape */
+  .landscape-mobile {
+    padding: 0.5rem;
+  }
+  
+  /* Compact forms in landscape */
+  .form-landscape-compact {
+    padding: 0.75rem;
+  }
+  
+  /* Smaller headers in landscape */
+  .landscape-mobile h1 {
+    font-size: 1.5rem;
+  }
+  
+  .landscape-mobile h2 {
+    font-size: 1.25rem;
+  }
+}
+
+/* Dark mode support preparation */
+@media (prefers-color-scheme: dark) {
+  /* Dark mode base styles (will be enhanced with dark mode toggle) */
+  .dark-mode-auto {
+    background-color: #1a1a1a;
+    color: #ffffff;
+  }
+}
+
+/* Accessibility improvements */
+@media (prefers-contrast: high) {
+  /* High contrast mode */
+  .high-contrast {
+    border: 2px solid currentColor;
+  }
+  
+  .high-contrast-text {
+    font-weight: 600;
+  }
+}
+
+/* Focus visible improvements */
+.focus-visible:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Mobile-specific utility classes */
+.mobile-only {
+  display: block;
+}
+
+.tablet-up {
+  display: none;
+}
+
+@media (min-width: 641px) {
+  .mobile-only {
+    display: none;
+  }
+  
+  .tablet-up {
+    display: block;
+  }
+}
+
+.desktop-only {
+  display: none;
+}
+
+@media (min-width: 1025px) {
+  .desktop-only {
+    display: block;
+  }
+}

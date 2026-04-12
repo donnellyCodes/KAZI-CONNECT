@@ -2,7 +2,7 @@ const axios = require('axios');
 const { Worker, Job, Review, Application } = require('../models');
 const { Op } = require('sequelize');
 
-const AI_SERVICE_URL = "http://localhost:8000/match";
+const AI_SERVICE_URL = process.env.AI_SERVICE_URL ||"http://localhost:8000/match";
 
 /**
  * @param {Object} job - Job model instance
@@ -11,14 +11,20 @@ const AI_SERVICE_URL = "http://localhost:8000/match";
 
 exports.getMatchScores = async (job, workers) => {
     try {
-        // cleans and extracts keywords from Job Title and Description
-        const cleanText = (text) => text.toLowerCase().replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "").split(/\s+/);
-        const jobKeywords = `${job.title} ${job.description}`.replace(/[^a-zA-Z ]/g, "").split(" ");
+        const sanitizeSkillList = (values) =>
+            values
+                .filter((value) => typeof value === 'string')
+                .map((value) => value.trim())
+                .filter(Boolean);
+
+        const jobSkillNames = Array.isArray(job.Skills)
+            ? job.Skills.map((skill) => skill?.name)
+            : [];
 
         const jobData = {
-            id: job.id,
-            skills: [job.category, job.title, job.description],
-            location: job.location,
+            id: String(job.id),
+            skills: sanitizeSkillList([job.category, job.title, job.description, ...jobSkillNames]),
+            location: job.location || '',
             availability: true
         };
 
@@ -34,10 +40,15 @@ exports.getMatchScores = async (job, workers) => {
             });
 
             return {
-                id: w.id,
-                skills: w.skills ? w.skills.toLowerCase().split(',').map(s => s.trim()) : [],
+                id: String(w.id),
+                skills: sanitizeSkillList(
+                    [
+                        ...(w.skills ? w.skills.toLowerCase().split(',').map(s => s.trim()) : []),
+                        w.customSkill
+                    ]
+                ),
                 location: w.location || '',
-                availability: w.availability,
+                availability: w.availability !== false,
                 rating: parseFloat(stats[0].dataValues.avgRating) || 5.0,
                 jobs_completed: completedJobs
             };
@@ -51,7 +62,8 @@ exports.getMatchScores = async (job, workers) => {
 
         return response.data;
     } catch (error) {
-        console.error("AI Service Connection Failed. Ensure Python server is running on port 8000");
+        const details = error.response?.data || error.message;
+        console.error("AI Service request failed:", details);
         return null;
     }
 };

@@ -1,16 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import API from '../../api/axios';
 import { useAuth } from '../../context/AuthContext';
+import { Send, User, Search, MoreVertical, MessageSquare, Phone, Video, Paperclip, Smile, Check, CheckCheck, Clock, Circle } from 'lucide-react';
 import { io } from 'socket.io-client';
-
-import { Send, User, Search, MoreVertical, MessageSquare } from 'lucide-react';
+import clsx from 'clsx';
 
 const socket = io('http://localhost:5000');
 
 export default function EmployerMessages() {
     const location = useLocation();
     const { user } = useAuth();
+    const messagesEndRef = useRef(null);
+    const searchInputRef = useRef(null);
 
     const incomingContactId = location.state?.contactId;
 
@@ -19,162 +21,425 @@ export default function EmployerMessages() {
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState('');
     const [loadingChats, setLoadingChats] = useState(true);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isTyping, setIsTyping] = useState(false);
+    const [onlineUsers, setOnlineUsers] = useState(new Set());
 
-    // 2. Load conversations
+    const currentSessionLabel = user?.email
+        ? `${user.role} - ${user.email}`
+        : user?.role
+            ? `${user.role} session`
+            : 'Unknown session';
+
+    // Auto-scroll to bottom when new messages arrive
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
+
+    // Load conversations
     useEffect(() => {
         const fetchConversations = async () => {
             try {
                 const { data } = await API.get('/messages/conversations/list');
                 const formatted = data.map(c => ({
                     id: c.id,
-                    name: c.role === 'worker' ? `${c.Worker?.firstName} ${c.Worker?.lastName}` : c.Employer?.companyName
+                    name: c.role === 'worker' ? `${c.Worker?.firstName} ${c.Worker?.lastName}` : c.Employer?.companyName,
+                    avatar: c.Worker?.firstName?.[0] || c.Employer?.companyName?.[0] || 'U',
+                    lastMessage: c.lastMessage || 'No messages yet',
+                    lastMessageTime: c.lastMessageTime || 'Now',
+                    unreadCount: c.unreadCount || 0,
+                    isOnline: onlineUsers.has(c.id),
+                    role: c.role
                 }));
                 setChats(formatted);
                 setLoadingChats(false);
-            } catch (err) { console.error("Error loading charts", err); }
+            } catch (err) { 
+                console.error("Error loading chats", err); 
+                setLoadingChats(false);
+            }
         };
         fetchConversations();
-    }, []);
+    }, [onlineUsers]);
 
-    // auto select logic
+    // Auto select logic
     useEffect(() => {
-        if (incomingContactId &&!loadingChats) {
-            console.log("Checking for incoming contact in sidebar:", incomingContactId);
-
+        if (incomingContactId && !loadingChats) {
             const existingChat = chats.find(c => c.id === incomingContactId);
             if (existingChat) {
-                console.log("Contact found in existing chats, opening window...");
                 setActiveChat(existingChat);
             } else {
-                console.log("Contact NOT in sidebar. Fetching new contact info...");
-                API.get(`/jobs/contact-info/${incomingContactId}`).then(({ data }) => { // /api/jobs/contact-info
-                    const newPerson = { id: data.id, name: data.name };
+                API.get(`/jobs/contact-info/${incomingContactId}`).then(({ data }) => {
+                    const newPerson = { 
+                        id: data.id, 
+                        name: data.name,
+                        avatar: data.name?.[0] || 'U',
+                        role: data.role
+                    };
                     setChats(prev => [newPerson, ...prev]);
                     setActiveChat(newPerson);
-                }).catch(err => console.error("Contact fetch error", err));
+                });
             }
         }
-    }, [incomingContactId, loadingChats]);
+    }, [incomingContactId, loadingChats, chats]);
 
-    // socket.io setup
+    // Load messages when active chat changes
     useEffect(() => {
-        if (user?.id) {
-            socket.emit('join', user.id);
-        }
-        socket.on('receive_message', (data) => {
-            if (activeChat && data.senderId === activeChat.id) {
-                setMessages((prev) => [...prev, data]);
-            }
-        });
-        return () => socket.off('receive_message');
-    }, [user, activeChat]);
-
-    // fetch message for specific chat
-    useEffect(() => {
-        if (activeChat && activeChat.id) {
-            console.log("Fetching messages for:", activeChat.id);
+        if (activeChat) {
             const fetchMessages = async () => {
                 try {
-                    const { data } = await API.get(`/messages/${activeChat.id}`);
-                    setMessages(data);
+                    const { data } = await API.get(`/messages/conversation/${activeChat.id}`);
+                    setMessages(data || []);
                 } catch (err) {
-                    console.error("Could not fetch messages");
+                    console.error("Error loading messages", err);
+                    setMessages([]);
                 }
             };
             fetchMessages();
-
-            // Auto-refresh every 5 seconds
-            const timer = setInterval(fetchMessages, 5000);
-            return () => clearInterval(timer);
         }
     }, [activeChat]);
+
+    // Socket.io setup
+    useEffect(() => {
+        if (user) {
+            socket.emit('join', user.id);
+            
+            socket.on('receive_message', (data) => {
+                if (activeChat && data.senderId === activeChat.id) {
+                    setMessages(prev => [...prev, data]);
+                } else {
+                    // Update chat list to show new message
+                    setChats(prev => prev.map(chat => 
+                        chat.id === data.senderId 
+                            ? { ...chat, lastMessage: data.content, lastMessageTime: 'Now', unreadCount: (chat.unreadCount || 0) + 1 }
+                            : chat
+                    ));
+                }
+            });
+
+            socket.on('user_typing', ({ userId, isTyping: typing }) => {
+                if (activeChat && userId === activeChat.id) {
+                    setIsTyping(typing);
+                }
+            });
+
+            socket.on('user_online', (userId) => {
+                setOnlineUsers(prev => new Set(prev).add(userId));
+            });
+
+            socket.on('user_offline', (userId) => {
+                setOnlineUsers(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(userId);
+                    return newSet;
+                });
+            });
+
+            return () => {
+                socket.off('receive_message');
+                socket.off('user_typing');
+                socket.off('user_online');
+                socket.off('user_offline');
+            };
+        }
+    }, [user, activeChat]);
 
     const handleSendMessage = async (e) => {
         e.preventDefault();
         if (!input.trim() || !activeChat) return;
 
+        const messageData = {
+            senderId: user.id,
+            receiverId: activeChat.id,
+            content: input.trim(),
+            timestamp: new Date().toISOString()
+        };
+
         try {
-            const { data } = await API.post('/messages', {
-                receiverId: activeChat.id,
-                content: input
-            });
-            // emit via socket
-            socket.emit('send_message', data);
-            setMessages([...messages, data]); // adds message to UI
-            setInput(''); // CLEARS the text box
+            await API.post('/messages/send', messageData);
+            socket.emit('send_message', messageData);
+            setMessages(prev => [...prev, { ...messageData, senderId: user.id }]);
+            setInput('');
+            
+            // Update chat list
+            setChats(prev => prev.map(chat => 
+                chat.id === activeChat.id 
+                    ? { ...chat, lastMessage: input.trim(), lastMessageTime: 'Now', unreadCount: 0 }
+                    : chat
+            ));
         } catch (err) {
             alert("Message failed to send");
             console.error(err);
         }
     };
-    
+
+    const handleTyping = (value) => {
+        setInput(value);
+        if (activeChat) {
+            socket.emit('typing', { receiverId: activeChat.id, isTyping: value.length > 0 });
+        }
+    };
+
+    const formatTime = (timestamp) => {
+        if (!timestamp) return '';
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diffInHours = (now - date) / (1000 * 60 * 60);
+        
+        if (diffInHours < 1) return 'Just now';
+        if (diffInHours < 24) return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        if (diffInHours < 48) return 'Yesterday';
+        return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    };
+
+    const filteredChats = chats.filter(chat => 
+        chat.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    const isOwnMessage = (message) => {
+        const currentUserId = String(user?.id || '');
+        const activeChatId = String(activeChat?.id || '');
+        const senderId = String(message?.senderId || '');
+        const receiverId = String(message?.receiverId || '');
+
+        if (senderId && senderId === currentUserId) return true;
+        if (receiverId && receiverId === currentUserId) return false;
+        if (receiverId && activeChatId && receiverId === activeChatId) return true;
+        if (senderId && activeChatId && senderId === activeChatId) return false;
+
+        return false;
+    };
+
+    const MessageStatus = ({ message }) => {
+        if (!isOwnMessage(message)) return null;
+        
+        const isRead = true; // This would come from backend
+        return isRead ? (
+            <CheckCheck size={16} className="text-blue-500" />
+        ) : (
+            <Check size={16} className="text-gray-400" />
+        );
+    };
 
     return (
-        <div className="flex h-[calc(100vh-160px)] bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-200">
-            {/*Sidebar - List of people */}
-            <div className="w-80 border-r border-slate-200 flex flex-col">
-                <div className="p-4 border-b font-bold text-slate-700 uppercase tracking-wider text-xs">Conversations</div>
-                <div className="flex-1 overflow-y-auto">
-                    {chats.map((chat) => (
-                        <div
-                            key={chat.id}
-                            onClick={() => setActiveChat(chat)} // selects the whole chat object
-                            className={`p-4 flex gap-3 cursor-pointer transition-all ${activeChat?.id === chat.id ? 'bg-indigo-50 border-r-4 border-indigo-600' : 'hover:bg-slate-50'}`}
-                        >
-                            <div className="w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center text-slate-500 font-bold">
-                                {chat.name}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <h4 className="font-bold text-slate-800 truncate">{chat.name}</h4>
-                                <p className="text-xs text-slate-500 truncate">{chat.lastMsg}</p>
-                            </div>
+        <div className={clsx('flex', 'h-[calc(100vh-160px)]', 'bg-white', 'rounded-2xl', 'shadow-sm', 'overflow-hidden', 'border', 'border-gray-200')}>
+            {/* Sidebar - Conversations List */}
+            <div className={clsx('w-96', 'border-r', 'border-gray-200', 'flex', 'flex-col')}>
+                {/* Sidebar Header */}
+                <div className={clsx('p-6', 'border-b', 'border-gray-200')}>
+                    <div className={clsx('flex', 'items-center', 'justify-between', 'mb-4')}>
+                        <h2 className={clsx('text-xl', 'font-bold', 'text-gray-900')}>Messages</h2>
+                        <div className={clsx('flex', 'items-center', 'gap-2')}>
+                            <button className={clsx('p-2', 'hover:bg-gray-100', 'rounded-lg', 'transition-colors')}>
+                                <Phone size={18} className="text-gray-600" />
+                            </button>
+                            <button className={clsx('p-2', 'hover:bg-gray-100', 'rounded-lg', 'transition-colors')}>
+                                <Video size={18} className="text-gray-600" />
+                            </button>
+                            <button className={clsx('p-2', 'hover:bg-gray-100', 'rounded-lg', 'transition-colors')}>
+                                <MoreVertical size={18} className="text-gray-600" />
+                            </button>
                         </div>
-                    ))}
+                    </div>
+                    
+                    {/* Search Bar */}
+                    <div className="relative">
+                        <Search size={20} className={clsx('absolute', 'left-3', 'top-1/2', 'transform', '-translate-y-1/2', 'text-gray-400')} />
+                        <input
+                            ref={searchInputRef}
+                            type="text"
+                            placeholder="Search conversations..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className={clsx('w-full', 'pl-10', 'pr-4', 'py-3', 'bg-gray-100', 'rounded-xl', 'outline-none', 'text-sm', 'focus:ring-2', 'focus:ring-blue-500', 'focus:bg-white', 'transition-all')}
+                        />
+                    </div>
+                </div>
+
+                {/* Conversations List */}
+                <div className={clsx('flex-1', 'overflow-y-auto')}>
+                    {loadingChats ? (
+                        <div className={clsx('flex', 'items-center', 'justify-center', 'h-32')}>
+                            <div className={clsx('animate-spin', 'rounded-full', 'h-8', 'w-8', 'border-b-2', 'border-blue-600')}></div>
+                        </div>
+                    ) : filteredChats.length === 0 ? (
+                        <div className={clsx('flex', 'flex-col', 'items-center', 'justify-center', 'h-32', 'text-gray-500')}>
+                            <MessageSquare size={48} className={clsx('mb-2', 'text-gray-300')} />
+                            <p className="text-sm">No conversations found</p>
+                        </div>
+                    ) : (
+                        filteredChats.map((chat) => (
+                            <div
+                                key={chat.id}
+                                onClick={() => setActiveChat(chat)}
+                                className={`group relative p-4 cursor-pointer transition-all border-b border-gray-100 ${
+                                    activeChat?.id === chat.id 
+                                        ? 'bg-blue-50 border-l-4 border-l-blue-600' 
+                                        : 'hover:bg-gray-50'
+                                }`}
+                            >
+                                <div className={clsx('flex', 'items-start', 'gap-3')}>
+                                    {/* Avatar */}
+                                    <div className="relative">
+                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-white ${
+                                            chat.isOnline ? 'bg-green-500' : 'bg-gray-400'
+                                        }`}>
+                                            {chat.avatar}
+                                        </div>
+                                        {chat.isOnline && (
+                                            <div className={clsx('absolute', 'bottom-0', 'right-0', 'w-3', 'h-3', 'bg-green-400', 'border-2', 'border-white', 'rounded-full')}></div>
+                                        )}
+                                    </div>
+                                    
+                                    {/* Chat Info */}
+                                    <div className={clsx('flex-1', 'min-w-0')}>
+                                        <div className={clsx('flex', 'items-center', 'justify-between', 'mb-1')}>
+                                            <h4 className={clsx('font-semibold', 'text-gray-900', 'truncate')}>{chat.name}</h4>
+                                            <span className={clsx('text-xs', 'text-gray-500')}>{formatTime(chat.lastMessageTime)}</span>
+                                        </div>
+                                        <div className={clsx('flex', 'items-center', 'justify-between')}>
+                                            <p className={clsx('text-sm', 'text-gray-600', 'truncate')}>{chat.lastMessage}</p>
+                                            {chat.unreadCount > 0 && (
+                                                <span className={clsx('bg-blue-600', 'text-white', 'text-xs', 'rounded-full', 'w-5', 'h-5', 'flex', 'items-center', 'justify-center')}>
+                                                    {chat.unreadCount}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))
+                    )}
                 </div>
             </div>
 
-            {/* Main chat window */}
-            <div className="flex-1 flex flex-col bg-slate-50">
+            {/* Main Chat Window */}
+            <div className={clsx('flex-1', 'flex', 'flex-col', 'bg-gray-50')}>
                 {activeChat ? (
                     <>
-                        {/* Header */}
-                        <div className="p-4 border-b bg-white flex justify-between items-center shadow-sm">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center font-bold">
-                                    {activeChat.name}
-                                </div>
-                                <h3 className="font-bold text-slate-800">{activeChat.name}</h3>
-                            </div>
-                        </div>
-                        {/* Message Display */}
-                        <div className="flex-1 p-6 overflow-y-auto space-y-4">
-                            {messages.map((msg, index) => (
-                                <div key={index} className={`flex ${msg.senderId === activeChat.id ? 'justify-start' : 'justify-end'}`}>
-                                    <div className={`max-w-[70%] p-3 rounded-2xl shadow-sm text-sm ${msg.senderId === activeChat.Id ? 'bg-white text-slate-700 rounded-tl-none' : 'bg-indigo-600 text-white rounded-tr-none'}`}>
-                                        {msg.content}
+                        {/* Chat Header */}
+                        <div className={clsx('p-4', 'bg-white', 'border-b', 'border-gray-200', 'shadow-sm')}>
+                            <div className={clsx('flex', 'items-center', 'justify-between')}>
+                                <div className={clsx('flex', 'items-center', 'gap-3')}>
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${
+                                        activeChat.isOnline ? 'bg-green-500' : 'bg-gray-400'
+                                    }`}>
+                                        {activeChat.avatar}
+                                    </div>
+                                    <div>
+                                        <h3 className={clsx('font-bold', 'text-gray-900')}>{activeChat.name}</h3>
+                                        <p className={clsx('text-xs', 'text-gray-500')}>
+                                            {activeChat.isOnline ? 'Active now' : 'Offline'}
+                                        </p>
                                     </div>
                                 </div>
-                            ))}
+                                <div className="hidden md:flex items-center mr-3 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium">
+                                    Signed in as {currentSessionLabel}
+                                </div>
+                                <div className={clsx('flex', 'items-center', 'gap-2')}>
+                                    <button className={clsx('p-2', 'hover:bg-gray-100', 'rounded-lg', 'transition-colors')}>
+                                        <Phone size={18} className="text-gray-600" />
+                                    </button>
+                                    <button className={clsx('p-2', 'hover:bg-gray-100', 'rounded-lg', 'transition-colors')}>
+                                        <Video size={18} className="text-gray-600" />
+                                    </button>
+                                    <button className={clsx('p-2', 'hover:bg-gray-100', 'rounded-lg', 'transition-colors')}>
+                                        <MoreVertical size={18} className="text-gray-600" />
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        {/* Form */}
-                        <div className="p-4 bg-white border-t">
-                            <form onSubmit={handleSendMessage} className="flex gap-2">
-                                <input
-                                    value={input}
-                                    onChange={(e) => setInput(e.target.value)}
-                                    placeholder="Write a message..."
-                                    className="flex-1 p-3 bg-slate-100 rounded-xl outline-none text-sm focus:ring-2 focus:ring-indigo-500"
-                                />
-                                <button type="submit" className="bg-indigo-600 text-white p-3 rounded-xl hover:bg-indigo-700">
+
+                        {/* Messages Area */}
+                        <div className={clsx('flex-1', 'p-6', 'overflow-y-auto', 'space-y-4')}>
+                            {messages.length === 0 ? (
+                                <div className={clsx('flex', 'flex-col', 'items-center', 'justify-center', 'h-full', 'text-gray-500')}>
+                                    <MessageSquare size={64} className={clsx('mb-4', 'text-gray-300')} />
+                                    <p className="font-medium">Start a conversation</p>
+                                    <p className="text-sm">Send a message to begin chatting</p>
+                                </div>
+                            ) : (
+                                messages.map((msg, index) => {
+                                    const ownMessage = isOwnMessage(msg);
+                                    return (
+                                    <div key={index} className={`flex ${ownMessage ? 'justify-end' : 'justify-start'}`}>
+                                        <div className={`flex items-end gap-2 max-w-[78%] ${ownMessage ? 'flex-row-reverse' : 'flex-row'}`}>
+                                            {!ownMessage && (
+                                                <div className="w-8 h-8 rounded-full bg-slate-300 text-slate-700 flex items-center justify-center text-xs font-bold shrink-0">
+                                                    {activeChat?.avatar || 'U'}
+                                                </div>
+                                            )}
+                                            <div className="group relative">
+                                                <div className={`px-4 py-3 rounded-2xl shadow-sm ${
+                                                    ownMessage 
+                                                        ? 'bg-blue-600 text-white rounded-br-md' 
+                                                        : 'bg-white text-slate-800 rounded-bl-md border border-slate-200'
+                                                }`}>
+                                                    <p className="text-sm leading-relaxed">{msg.content}</p>
+                                                </div>
+                                                <div className={`flex items-center gap-2 mt-1 px-1 text-xs ${
+                                                    ownMessage ? 'justify-end text-slate-500' : 'justify-start text-slate-400'
+                                                }`}>
+                                                    <span>{formatTime(msg.timestamp || msg.createdAt)}</span>
+                                                    <MessageStatus message={msg} />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    );
+                                })
+                            )}
+                            
+                            {/* Typing Indicator */}
+                            {isTyping && (
+                                <div className={clsx('flex', 'items-center', 'gap-2', 'text-gray-500', 'text-sm')}>
+                                    <div className={clsx('flex', 'gap-1')}>
+                                        <div className={clsx('w-2', 'h-2', 'bg-gray-400', 'rounded-full', 'animate-bounce')} style={{ animationDelay: '0ms' }}></div>
+                                        <div className={clsx('w-2', 'h-2', 'bg-gray-400', 'rounded-full', 'animate-bounce')} style={{ animationDelay: '150ms' }}></div>
+                                        <div className={clsx('w-2', 'h-2', 'bg-gray-400', 'rounded-full', 'animate-bounce')} style={{ animationDelay: '300ms' }}></div>
+                                    </div>
+                                    <span>typing...</span>
+                                </div>
+                            )}
+                            
+                            <div ref={messagesEndRef} />
+                        </div>
+
+                        {/* Message Input */}
+                        <div className={clsx('p-4', 'bg-white', 'border-t', 'border-gray-200')}>
+                            <form onSubmit={handleSendMessage} className={clsx('flex', 'items-end', 'gap-3')}>
+                                <button type="button" className={clsx('p-3', 'text-gray-500', 'hover:text-gray-700', 'transition-colors')}>
+                                    <Paperclip size={20} />
+                                </button>
+                                <div className={clsx('flex-1', 'relative')}>
+                                    <input
+                                        value={input}
+                                        onChange={(e) => handleTyping(e.target.value)}
+                                        placeholder="Type a message..."
+                                        className={clsx('w-full', 'px-4', 'py-3', 'bg-gray-100', 'rounded-xl', 'outline-none', 'text-sm', 'focus:ring-2', 'focus:ring-blue-500', 'focus:bg-white', 'transition-all', 'resize-none')}
+                                    />
+                                </div>
+                                <button type="button" className={clsx('p-3', 'text-gray-500', 'hover:text-gray-700', 'transition-colors')}>
+                                    <Smile size={20} />
+                                </button>
+                                <button 
+                                    type="submit" 
+                                    disabled={!input.trim()}
+                                    className={clsx('p-3', 'bg-blue-600', 'text-white', 'rounded-xl', 'hover:bg-blue-700', 'disabled:opacity-50', 'disabled:cursor-not-allowed', 'transition-all')}
+                                >
                                     <Send size={20} />
                                 </button>
                             </form>
                         </div>
                     </>
-                 ) : (
-                    <div className="flex-1 flex items-center justify-center text-slate-400 flex-col gap-2">
-                        <MessageSquare size={48} />
-                        <p className="font-medium">Select a contact to start chatting</p>
+                ) : (
+                    <div className={clsx('flex-1', 'flex', 'items-center', 'justify-center', 'text-gray-500', 'flex-col', 'gap-4')}>
+                        <div className={clsx('w-24', 'h-24', 'bg-gray-100', 'rounded-full', 'flex', 'items-center', 'justify-center')}>
+                            <MessageSquare size={48} className="text-gray-300" />
+                        </div>
+                        <div className="text-center">
+                            <h3 className={clsx('font-semibold', 'text-lg', 'mb-2')}>Welcome to Messages</h3>
+                            <p className="text-sm">Select a conversation to start chatting</p>
+                        </div>
                     </div>
                 )}
             </div>

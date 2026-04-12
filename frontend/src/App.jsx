@@ -3,6 +3,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
+import { ToastProvider } from './components/ui';
 import Home from './pages/Home';
 import VerifyOTP from './pages/VerifyOTP';
 import AdminDisputes from './pages/admin/AdminDisputes';
@@ -39,8 +40,9 @@ import AdminJobs from './pages/admin/AdminJobs';
 
 function App() {
   return (
-    <AuthProvider>
-      <Routes>
+    <ToastProvider>
+      <AuthProvider>
+        <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
@@ -106,14 +108,14 @@ function App() {
           </ProtectedRoute>
         } />
 
-        // worker job discovery
+        {/* worker job discovery */}
         <Route path="/worker/jobs" element={
           <ProtectedRoute allowedRoles={['worker']}>
             <WorkerLayout><JobDiscovery /></WorkerLayout>
           </ProtectedRoute>
         } />
 
-        // worker job detail
+        {/* worker job detail */}
         <Route path="/worker/jobs/:id" element={
           <ProtectedRoute allowedRoles={['worker']}>
             <WorkerLayout><JobDetails /></WorkerLayout>
@@ -162,7 +164,7 @@ function App() {
         } />
 
         <Route path="/employer/jobs/:jobId/applicants" element={
-          <ProtectedRoute allowedRoutes={['employer']}>
+          <ProtectedRoute allowedRoles={['employer']}>
             <EmployerLayout><ViewApplicants /></EmployerLayout>
           </ProtectedRoute>
         } />
@@ -176,7 +178,8 @@ function App() {
         } />
 
       </Routes>
-    </AuthProvider>
+      </AuthProvider>
+    </ToastProvider>
   );
 }
 

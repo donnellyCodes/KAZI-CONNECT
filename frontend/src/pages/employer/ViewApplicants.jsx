@@ -28,7 +28,7 @@ export default function ViewApplicants() {
     // To handle hiring or rejecting an applicant
     const handleStatusUpdate = async (appId, status) => {
         try {
-            await API.put(`/jobs/applicants/${appId}`, { status });
+            await API.put(`/jobs/applications/${appId}`, { status });
             alert(`Successfully updated status to: ${status}`);
 
             // update UI list locally without refreshing the page
@@ -40,11 +40,11 @@ export default function ViewApplicants() {
 
     // navigate to chat with this worker
     const startChat = (id) => {
-        console.log("DEBUG: Redirecting to chat with User ID:", workerUserId);
+        console.log("DEBUG: Redirecting to chat with User ID:", id);
 
         if (!id) return alert("Worker ID not found");
 
-        navigate('/employer/messages', { state: { contactId:workerUserId } });
+        navigate('/employer/messages', { state: { contactId: id } });
     };
 
     if (loading) return (

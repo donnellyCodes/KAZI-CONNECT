@@ -4,9 +4,10 @@ const { createJob, getAllJobs, getJobById, getMyJobs, getEmployerStats, getJobAp
 const { applyForJob } = require('../controllers/applicationController');
 const { getContactInfo } = require('../controllers/profileController');
 const { protect, authorize } = require('../middleware/auth');
+const { validateJobCreation } = require('../middleware/validation');
 
 // job routes
-router.post('/', protect, authorize('employer'), createJob); // only employers can post
+router.post('/', protect, authorize('employer'), validateJobCreation, createJob); // only employers can post
 // application routes
 router.post('/:jobId/apply', protect, authorize('worker'), applyForJob); // only workers can apply
 
@@ -17,7 +18,7 @@ router.get('/recommendations', protect, authorize('worker'), getRecommendedJobs)
 
 router.get('/contact-info/:userId', protect, getContactInfo);
 
-router.get('/:jobId/applicants', protect, getJobApplications);
+router.get('/:jobId/applicants', protect, authorize('employer'), getJobApplications);
 
 router.get('/', protect, getAllJobs); // everyone can see jobs
 router.get('/:id', getJobById);

@@ -35,10 +35,22 @@ export default function EmployerProfile() {
     const handleSave = async (e) => {
         e.preventDefault();
         try {
+            // Save the profile data
             await API.put('/users/profile', profile);
+            
+            // Re-fetch the updated profile to ensure we have the latest data
+            const { data } = await API.get('/users/profile');
+            setProfile({
+                companyName: data.companyName || '',
+                location: data.location || '',
+                industry: data.industry || '',
+                bio: data.bio || ''
+            });
+            
             alert("Profile updated successfully!");
-            setIsEditing(false) // hides form after saving
+            setIsEditing(false); // hides form after saving
         } catch (err) {
+            console.error("Error saving profile:", err);
             alert("Failed to save profile changes.");
         }
     };

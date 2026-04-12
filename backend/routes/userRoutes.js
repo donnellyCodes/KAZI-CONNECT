@@ -15,9 +15,15 @@ router.get('/admin/users', protect, authorize('admin'), getAllUsers);
 router.get('/admin/stats', protect, authorize('admin'), getAdminStats);
 router.put('/admin/verify', protect, authorize('admin'), verifyWorker);
 
-// file upload route
-router.post('/upload-id', protect, authorize('worker'), upload.single('document'), (req, res) => {
-    res.json({ message: "Document uploaded", url: req.file.path });
+// file upload routes for worker documents
+router.post('/upload-cv', protect, authorize('worker'), upload.single('cv'), (req, res) => {
+    console.log('CV upload successful for user:', req.user.id);
+    res.json({ message: "CV uploaded successfully", url: req.file.path });
+});
+
+router.post('/upload-id', protect, authorize('worker'), upload.single('idDocument'), (req, res) => {
+    console.log('ID upload successful for user:', req.user.id);
+    res.json({ message: "ID uploaded successfully", url: req.file.path });
 });
 
 module.exports = router;

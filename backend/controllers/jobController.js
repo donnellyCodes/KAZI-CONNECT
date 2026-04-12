@@ -1,15 +1,17 @@
-const { Application, Job, Employer, Worker, Skill, User, Message } = require('../models');
+const { Application, Job, Employer, Worker, Skill, User, Message, Payment, Review } = require('../models');
 const { Op } = require('sequelize');
 const aiService = require('../services/aiServices');
 
 // @desc for creating a new job
 // @route POST /api/jobs
 // @access Private for employer only
-exports .getJobApplications = async (req, res) => {
+exports.getJobApplications = async (req, res) => {
     try {
         const { jobId } = req.params;
 
-        const job = await Job.findByPk(jobId);
+        const job = await Job.findByPk(jobId, {
+            include: [{ model: Skill, through: { attributes: [] } }]
+        });
         if (!job) {
             return res.status(404).json({ message: "Job not found" });
         }
@@ -84,7 +86,10 @@ exports.updateApplicationStatus = async (req, res) => {
 
 exports.completeJob = async (req, res) => {
     try {
-        const job = await Job.findOne({ where: { id: req.params.id, employerId: req.user.id } });
+        const employer = await Employer.findOne({ where: { userId: req.user.id } });
+        if (!employer) return res.status(404).json({ message: "Employer profile not found" });
+
+        const job = await Job.findOne({ where: { id: req.params.id, employerId: employer.id } });
         if (!job) return res.status(404).json({ message: "Job not found" });
         job.status = 'completed';
         await job.save();
@@ -111,6 +116,16 @@ exports.getMyJobs = async (req, res) => {
         // find all jobs belonging to this employer
         const jobs = await Job.findAll({
             where: { employerId: employer.id },
+            include: [
+                {
+                    model: Payment,
+                    required: false
+                },
+                {
+                    model: Review,
+                    required: false
+                }
+            ],
             order: [['createdAt', 'DESC']]
         });
 
@@ -131,6 +146,14 @@ exports.getAllJobs = async (req, res) => {
         }
 
         let whereClause = { status: 'open' };
+        if (currentWorkerId) {
+            whereClause = {
+                [Op.or]: [
+                    { status: 'open' },
+                    { status: 'in-progress', hiredWorkerId: currentWorkerId }
+                ]
+            };
+        }
 
         // filter by location
         if (location && location.trim() !== "") {
@@ -156,7 +179,7 @@ exports.getAllJobs = async (req, res) => {
             include: [
                 {
                     model: Employer,
-                    attributes: ['companyName', 'location']
+                    attributes: ['companyName', 'location', 'userId']
                 },
                 {
                     model: Application,
@@ -250,11 +273,24 @@ exports.getWorkerStats = async (req, res) => {
 exports.getEmployerStats = async (req, res) => {
     try {
         const employer = await Employer.findOne({ where: { userId: req.user.id } });
-        if (!employer) return res.json({ totalJobs: 0, activeJobs: 0 });
+        if (!employer) return res.json({ totalJobs: 0, activeJobs: 0, totalApplicants: 0, completedJobs: 0, pendingReview: 0 });
 
         const totalJobs = await Job.count({ where: { employerId: employer.id } });
-        const activeJobs = await Job.count({ where: { employerId: employer.id, status: 'in-progress' } });
-        res.json({ totalJobs, activeJobs });
+        const activeJobs = await Job.count({ where: { employerId: employer.id, status: 'open' } });
+        const completedJobs = await Job.count({ where: { employerId: employer.id, status: 'completed' } });
+
+        // count total applicants across all jobs
+        const jobs = await Job.findAll({
+            where: { employerId: employer.id },
+            include: [{ model: Application, attributes: ['id'] }]
+        });
+
+        const totalApplicants = jobs.reduce((total, job) => total + (job.Applications ? job.Applications.length : 0), 0);
+        const pendingReview = jobs.reduce((total, job) => {
+            total + (job.Applications ? job.Applications.filter(app => app.status === 'pending').length : 0);
+        }, 0);
+        
+        res.json({ totalJobs, activeJobs, completedJobs, totalApplicants, pendingReview });
     } catch (error) {
         res.status(500).json({ error: "Internal Server Error" });
     }
@@ -265,19 +301,66 @@ exports.getRecommendedJobs = async (req, res) => {
         const worker = await Worker.findOne({ where: { userId: req.user.id } });
         if (!worker) return res.json([]);
 
-        let recommendations;
+        const openJobs = await Job.findAll({
+            where: { status: 'open' },
+            include: [
+                { model: Employer, attributes: ['companyName', 'location'] },
+                { model: Skill, through: { attributes: [] } },
+                {
+                    model: Application,
+                    required: false,
+                    attributes: ['workerId']
+                }
+            ],
+            order: [['createdAt', 'DESC']]
+        });
+
+        if (openJobs.length === 0) return res.json([]);
+
+        const availableJobs = openJobs.filter(job =>
+            !job.Applications?.some(app => app.workerId === worker.id)
+        );
+
+        if (availableJobs.length === 0) return res.json([]);
+
         try {
-            const openJobs = await Job.findAll({ where: { status: 'open' } });
-            recommendations = await aiService.getMathScores(openJobs[0], [worker]);
+            const scoredJobs = await Promise.all(
+                availableJobs.map(async (job) => {
+                    const scores = await aiService.getMatchScores(job, [worker]);
+                    const scoreData = scores?.[0];
+                    const jobJson = job.toJSON();
+                    delete jobJson.Applications;
+
+                    return {
+                        ...jobJson,
+                        matchScore: scoreData ? scoreData.matchScore : 0,
+                        breakdown: scoreData ? scoreData.breakdown : null
+                    };
+                })
+            );
+
+            const rankedJobs = scoredJobs
+                .filter(job => job.matchScore > 0)
+                .sort((a, b) => b.matchScore - a.matchScore)
+                .slice(0, 10);
+
+            return res.json(rankedJobs);
         } catch (aiErr) {
-            console.log("AI Service offline, falling back to standard list");
+            console.log("AI Service offline, falling back to filtered job list");
         }
 
-        const jobs = await Job.findAll({
-            where: { status: 'open'},
-            include: [{ model: Employer, attributes: ['companyName'] }]
-        });
-        res.json(jobs);
+        const fallbackJobs = availableJobs
+            .map(job => {
+                const jobJson = job.toJSON();
+                delete jobJson.Applications;
+                return {
+                    ...jobJson,
+                    matchScore: 0
+                };
+            })
+            .slice(0, 10);
+
+        res.json(fallbackJobs);
     } catch (error) {
         console.error("RECS ERROR:", error);
         res.status(500).json({ error: error.message });
