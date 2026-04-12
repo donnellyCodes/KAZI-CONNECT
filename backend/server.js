@@ -1,5 +1,6 @@
 // entry point
 const express = require('express');
+require('dotenv').config();
 const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -8,8 +9,6 @@ const { sequelize } = require('./models');
 const authRoutes = require('./routes/authRoutes');
 const jobRoutes = require('./routes/jobRoutes');
 const messageRoutes = require('./routes/messageRoutes');
-
-require('dotenv').config();
 
 const app = express();
 
