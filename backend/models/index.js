@@ -8,8 +8,8 @@ const Application = require('./application');
 const Payment = require('./payment');
 const Review = require('./review');
 const Verification = require('./verification');
-const Message = require('./Message');
-const Dispute = require('./Dispute');
+const Message = require('./message');
+const Dispute = require('./dispute');
 
 User.hasOne(Worker, { foreignKey: 'userId', onDelete: 'CASCADE' });
 Worker.belongsTo(User, { foreignKey: 'userId' });
