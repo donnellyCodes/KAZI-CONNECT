@@ -24,14 +24,12 @@ exports.register = async (req, res) => {
             await Employer.create({ userId: user.id, ...profileData });
         }
 
-        // Send OTP email
-        const emailResult = await sendOTPEmail(email, otp);
-        
-        if (!emailResult.success) {
-            return res.status(500).json({ 
-                message: 'Registration successful but failed to send verification email',
-                error: emailResult.error 
-            });
+        // Send OTP email - non-blocking so registration succeeds even if email fails
+        let emailResult = { success: false };
+        try {
+            emailResult = await sendOTPEmail(email, otp);
+        } catch (err) {
+            console.error('Email failed:', err);
         }
 
         console.log(`--- DEBUG: OTP for ${email} is ${otp} ---`);
@@ -68,8 +66,10 @@ exports.verifyOTP = async (req, res) => {
             ? await Worker.findOne({ where: { userId: user.id } })
             : await Employer.findOne({ where: { userId: user.id } });
             
+        // Send welcome email - non-blocking
         if (profile) {
-            await sendWelcomeEmail(email, profile.firstName || profile.companyName);
+            sendWelcomeEmail(email, profile.firstName || profile.companyName)
+                .catch(err => console.error('Welcome email failed:', err));
         }
         
         res.json({ 
