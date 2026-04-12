@@ -36,3 +36,26 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+
+# Test coverage
+coverage/
+backend/coverage/
+frontend/coverage/
+
+# SSL/TLS certs (you mention SSL in deployment.md)
+*.pem
+*.key
+*.cert
+*.crt
+
+# Temporary files
+*.tmp
+*.swp
+
+# Redis dump (if running locally)
+dump.rdb
+
+# AI service model artifacts (if you save trained models locally)
+ai_service/*.pkl
+ai_service/*.joblib
+ai_service/models/
