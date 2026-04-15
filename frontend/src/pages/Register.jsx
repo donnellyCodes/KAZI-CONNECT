@@ -91,6 +91,13 @@ export default function Register() {
                                 {error}
                             </div>
                         )}
+                        {loading && (
+                            <div className="absolute inset-0 bg-white bg-opacity-90 flex flex-col items-center justify-center rounded-2xl z-10">
+                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mb-4"></div>
+                                <p className="text-gray-700 font-medium">Creating your account...</p>
+                                <p className="text-gray-500 text-sm mt-2">Please wait while we register you</p>
+                            </div>
+                        )}
 
                         {/* Role Selection */}
                         <div className="flex p-1 bg-gray-100 rounded-lg">
