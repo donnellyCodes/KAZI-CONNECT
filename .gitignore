@@ -20,10 +20,6 @@ __pycache__/
 frontend/dist/
 frontend/build/
 
-
-#Uploads
-uploads/
-
 #Logs
 *.log
 npm-debug.log*
